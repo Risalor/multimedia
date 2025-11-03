@@ -6,7 +6,7 @@
 
 class BitReader {
 private:
-    std::vector<char> m_data;
+    std::vector<uint8_t> m_data;
     uint8_t m_currBit = 0;
     uint64_t m_currByte = 0;
 
@@ -15,9 +15,11 @@ private:
 public:
     BitReader(const std::string& filePath);
     bool readNextBit();
-    char getNextByte();
+    uint8_t readNextByte();
     bool isEnd();
     void setSavePoint();
     void loadFromSavePoint();
     void resetToStart();
+    uint32_t readUint32();
+    uint64_t readUint64();
 };

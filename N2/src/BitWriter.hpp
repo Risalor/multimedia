@@ -15,4 +15,8 @@ public:
     void writeBit(bool bit);
     void writeByte(uint8_t byte);
     void writeBufferToFile(const std::string& path);
+    void flush();
+    std::vector<uint8_t> getBuffer();
+    void writeUint32(uint32_t value);
+    void writeUint64(uint64_t value);
 };
