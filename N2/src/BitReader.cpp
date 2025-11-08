@@ -65,6 +65,10 @@ uint64_t BitReader::readUint64() {
     return value;
 }
 
+std::vector<uint8_t> BitReader::getBuffer() {
+    return m_data;
+}
+
 bool BitReader::isEnd() {
     return m_currByte >= m_data.size() || (m_currByte == (m_data.size() - 1) && m_currBit >= 8);
 }

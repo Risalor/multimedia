@@ -4,15 +4,15 @@
 
 struct TableElement {
     uint32_t freq = 0;
-    uint32_t upper = 0;
-    uint32_t lower = 0;
+    uint64_t upper = 0;
+    uint64_t lower = 0;
     float probability = 0.f;
     uint8_t element = 0;
 };
 
 std::vector<TableElement> orderedElements;
 
-std::array<TableElement, 256> makeTable(const std::vector<char>& buffer) {
+std::array<TableElement, 256> makeTable(const std::vector<uint8_t>& buffer) {
 
     std::array<TableElement, 256> tempTable;
     std::array<int16_t, 256> firstAppearance;
@@ -29,12 +29,9 @@ std::array<TableElement, 256> makeTable(const std::vector<char>& buffer) {
     }
 
     std::vector<TableElement> toReturnTable;
-    toReturnTable.reserve(counter);
-    toReturnTable.resize(counter);
-
-    for(uint8_t i = 0; i < 255; i++) {
+    for(uint16_t i = 0; i < 256; i++) {
         if(firstAppearance[i] != -1) {
-            toReturnTable[firstAppearance[i]] = tempTable[i];
+            toReturnTable.push_back(tempTable[i]);
         }
     }
 
@@ -44,7 +41,7 @@ std::array<TableElement, 256> makeTable(const std::vector<char>& buffer) {
     toReturnTable[0].lower = 0;
     toReturnTable[0].upper = toReturnTable[0].lower + toReturnTable[0].freq;
 
-    for(uint8_t i = 1; i < toReturnTable.size(); i++) {
+    for(uint16_t i = 1; i < toReturnTable.size(); i++) {
         toReturnTable[i].probability = static_cast<double>(toReturnTable[i].freq) / static_cast<double>(buffer.size());
         toReturnTable[i].lower = toReturnTable[i - 1].upper;
         toReturnTable[i].upper = toReturnTable[i].lower + toReturnTable[i].freq;
@@ -64,7 +61,7 @@ std::array<TableElement, 256> makeTableFromfreq(std::vector<TableElement>& table
     table[0].lower = 0;
     table[0].upper = table[0].lower + table[0].freq;
 
-    for(uint8_t i = 1; i < table.size(); i++) {
+    for(uint32_t i = 1; i < table.size(); i++) {
         table[i].probability = static_cast<double>(table[i].freq) / static_cast<double>(freq);
         table[i].lower = table[i - 1].upper;
         table[i].upper = table[i].lower + table[i].freq;
@@ -77,14 +74,13 @@ std::array<TableElement, 256> makeTableFromfreq(std::vector<TableElement>& table
     return tempTable;
 }
 
-void encode(std::vector<char>& bts) {
+void encode(std::vector<uint8_t>& bts) {
     std::array<TableElement, 256> table = makeTable(bts);
     BitWriter writer;
 
     uint64_t comFreq = 0;
 
     writer.writeByte(static_cast<uint8_t>(orderedElements.size()));
-    std::cout << "Size is: " << static_cast<uint8_t>(orderedElements.size()) << "\n";
 
     for(const auto& it : orderedElements) {
         writer.writeByte(it.element);
@@ -111,11 +107,9 @@ void encode(std::vector<char>& bts) {
                 lowerBound = lowerBound * 2;
                 upperBound = upperBound * 2 + 1;
                 writer.writeBit(0);
-                std::cout << "0";
 
                 for(uint8_t i = 0; i < E3_counter; i++) {
                     writer.writeBit(1);
-                    std::cout << "1";
                 }
 
                 E3_counter = 0;
@@ -124,11 +118,8 @@ void encode(std::vector<char>& bts) {
                 lowerBound = 2 * (lowerBound - secondQuarter);
                 upperBound = 2 * (upperBound - secondQuarter) + 1;
                 writer.writeBit(1);
-                std::cout << "1";
-
                 for(uint8_t i = 0; i < E3_counter; i++) {
                     writer.writeBit(0);
-                    std::cout << "0";
                 }
 
                 E3_counter = 0;
@@ -147,25 +138,17 @@ void encode(std::vector<char>& bts) {
         writer.writeBit(0);
         writer.writeBit(1);
 
-        std::cout << "01";
-
         for(uint8_t i = 0; i < E3_counter; i++) {
             writer.writeBit(1);
-            std::cout << "1";
         }
     } else {
         writer.writeBit(1);
         writer.writeBit(0);
 
-        std::cout << "10";
-
         for(uint8_t i = 0; i < E3_counter; i++) {
             writer.writeBit(0);
-            std::cout << "0";
         }
     }
-
-    std::cout << "\n";
 
     writer.writeBufferToFile("test.bin");
 }
@@ -181,7 +164,7 @@ uint8_t getSymbolFromTable(const std::array<TableElement, 256>& table, uint64_t 
     return 0;
 }
 
-void decode(const std::string& filePath) {
+std::vector<uint8_t> decode(const std::string& filePath) {
     uint64_t comFreq = 0;
     uint64_t lowerBound = 0;
     uint64_t upperBound = std::pow(2, 64 - 1) - 1;
@@ -192,7 +175,11 @@ void decode(const std::string& filePath) {
 
     BitReader reader(filePath);
 
-    uint8_t eleC = static_cast<uint8_t>(reader.readNextByte());
+    uint16_t eleC = static_cast<uint8_t>(reader.readNextByte());
+
+    if(eleC == 0) {
+        eleC = 256;
+    }
 
     std::vector<TableElement> tempTab(eleC);
 
@@ -234,6 +221,7 @@ void decode(const std::string& filePath) {
                 code = 2 * (code - secondQuarter) + reader.readNextBit();
             }
             else break;
+
         }
 
         while (lowerBound >= firstQuarter && upperBound < thirdQuarter) {
@@ -243,20 +231,50 @@ void decode(const std::string& filePath) {
         }
     }
 
-    for (uint8_t c : out) std::cout << (char)c;
-    std::cout << '\n';
+    return out;
 }
 
 int main(int argc, char* argv[]) {
-    std::vector<char> bts = { 'G', 'E', 'M', 'M', 'A' };
-    std::array<TableElement, 256> a = makeTable(bts);
+    BitReader reader("/home/risalor/Desktop/PoročiloDela.odt");
+    std::vector<uint8_t> bts = reader.getBuffer();
+
+    std::array<TableElement, 256> table = makeTable(bts);
 
     encode(bts);
-    decode("test.bin");
 
-    /*for(auto& it : a) {
-        std::cout << it.element << " f:" << it.freq << " p:" << it.probability << " l:" << it.lower << " u:" << it.upper << "\n";
-    }*/
+    std::vector<uint8_t> out = decode("test.bin");
+
+    BitWriter writer;
+    for(auto& it : out) {
+        writer.writeByte(it);
+    }
+
+    writer.writeBufferToFile("testout.odt");
     
     return 0;
 }
+
+/*
+int main(int argc, char* argv[]) {
+    BitReader reader("/home/risalor/Desktop/Multimedija/N2/build/Screenshot_20251108_221434.jpg");
+    std::vector<uint8_t> bts = reader.getBuffer();
+
+    std::array<TableElement, 256> table = makeTable(bts);
+
+    encode(bts);
+
+    std::vector<uint8_t> out = decode("test.bin");
+
+    return 0;
+
+    BitWriter writer;
+    for(auto& it : out) {
+        writer.writeByte(it);
+        std::cout << "a\n";
+    }
+
+    writer.writeBufferToFile("testout.jpg");
+    
+    return 0;
+}
+*/

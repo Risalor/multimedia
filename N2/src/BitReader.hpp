@@ -22,4 +22,5 @@ public:
     void resetToStart();
     uint32_t readUint32();
     uint64_t readUint64();
+    std::vector<uint8_t> getBuffer();
 };
