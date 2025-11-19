@@ -164,7 +164,7 @@ uint8_t getSymbolFromTable(const std::array<TableElement, 256>& table, uint64_t 
     return 0;
 }
 
-std::vector<uint8_t> decode(const std::string& filePath) {
+std::vector<uint8_t> decode(BitReader& reader) {
     uint64_t comFreq = 0;
     uint64_t lowerBound = 0;
     uint64_t upperBound = std::pow(2, 64 - 1) - 1;
@@ -172,8 +172,6 @@ std::vector<uint8_t> decode(const std::string& filePath) {
     uint64_t secondQuarter = std::floor((static_cast<double>(upperBound) + 1.f) / 2.f);
     uint64_t firstQuarter = std::floor(static_cast<double>(secondQuarter) / 2.f);
     uint64_t thirdQuarter = std::floor(static_cast<double>(firstQuarter) * 3.f);
-
-    BitReader reader(filePath);
 
     uint16_t eleC = static_cast<uint8_t>(reader.readNextByte());
 
@@ -235,21 +233,29 @@ std::vector<uint8_t> decode(const std::string& filePath) {
 }
 
 int main(int argc, char* argv[]) {
-    BitReader reader("/home/risalor/Desktop/PoročiloDela.odt");
+    BitReader reader("Testnedatoteke/lorem.txt");
     std::vector<uint8_t> bts = reader.getBuffer();
 
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     std::array<TableElement, 256> table = makeTable(bts);
-
     encode(bts);
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
-    std::vector<uint8_t> out = decode("test.bin");
+    std::cout << "Time taken to compress = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
+
+    BitReader reader2("test.bin");
+    begin = std::chrono::steady_clock::now();
+    std::vector<uint8_t> out = decode(reader2);
+    end = std::chrono::steady_clock::now();
+
+    std::cout << "Time taken to decompress = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
 
     BitWriter writer;
     for(auto& it : out) {
         writer.writeByte(it);
     }
 
-    writer.writeBufferToFile("testout.odt");
+    writer.writeBufferToFile("lena.txt");
     
     return 0;
 }
