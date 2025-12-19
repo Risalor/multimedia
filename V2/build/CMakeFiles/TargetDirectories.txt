@@ -1,0 +1,3 @@
+/home/risalor/Desktop/Multimedija/V2/build/CMakeFiles/N1.dir
+/home/risalor/Desktop/Multimedija/V2/build/CMakeFiles/edit_cache.dir
+/home/risalor/Desktop/Multimedija/V2/build/CMakeFiles/rebuild_cache.dir
