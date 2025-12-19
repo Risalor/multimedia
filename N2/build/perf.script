@@ -1,0 +1,27 @@
+N1   13756  3150.182013:          1 cycles:Pu: 
+	ffffffff81e01280 [unknown] ([unknown])
+	    7f55d335cb40 [unknown] (/usr/lib/ld-linux-x86-64.so.2)
+
+N1   13756  3150.182021:          1 cycles:Pu: 
+	    7f55d335d694 [unknown] (/usr/lib/ld-linux-x86-64.so.2)
+
+N1   13756  3150.182024:          1 cycles:Pu: 
+	ffffffff81e01280 [unknown] ([unknown])
+	    7f55d335d694 [unknown] (/usr/lib/ld-linux-x86-64.so.2)
+
+N1   13756  3150.182028:        147 cycles:Pu: 
+	ffffffff81e01280 [unknown] ([unknown])
+	    7f55d335d6b2 [unknown] (/usr/lib/ld-linux-x86-64.so.2)
+	    7f55d335cb48 [unknown] (/usr/lib/ld-linux-x86-64.so.2)
+
+N1   13756  3150.182129:      64576 cycles:Pu: 
+	    7f55d3363f27 [unknown] (/usr/lib/ld-linux-x86-64.so.2)
+	    7f55d3347e19 [unknown] (/usr/lib/ld-linux-x86-64.so.2)
+	    7f55d334183d [unknown] (/usr/lib/ld-linux-x86-64.so.2)
+	    7f55d3340456 _dl_catch_exception+0xa6 (/usr/lib/ld-linux-x86-64.so.2)
+	    7f55d3341ca3 [unknown] (/usr/lib/ld-linux-x86-64.so.2)
+	    7f55d335f9b0 [unknown] (/usr/lib/ld-linux-x86-64.so.2)
+	    7f55d335c5e6 [unknown] (/usr/lib/ld-linux-x86-64.so.2)
+	    7f55d335dca1 [unknown] (/usr/lib/ld-linux-x86-64.so.2)
+	    7f55d335cb48 [unknown] (/usr/lib/ld-linux-x86-64.so.2)
+

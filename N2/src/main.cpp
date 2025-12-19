@@ -1,6 +1,7 @@
 #include "BitReader.hpp"
 #include "BitWriter.hpp"
 #include <bits/stdc++.h>
+#include <cstring>
 
 struct TableElement {
     uint32_t freq = 0;
@@ -74,7 +75,7 @@ std::array<TableElement, 256> makeTableFromfreq(std::vector<TableElement>& table
     return tempTable;
 }
 
-void encode(std::vector<uint8_t>& bts) {
+void encode(std::vector<uint8_t>& bts, const std::string& fileName = "") {
     std::array<TableElement, 256> table = makeTable(bts);
     BitWriter writer;
 
@@ -150,7 +151,7 @@ void encode(std::vector<uint8_t>& bts) {
         }
     }
 
-    writer.writeBufferToFile("test.bin");
+    writer.writeBufferToFile(fileName);
 }
 
 uint8_t getSymbolFromTable(const std::array<TableElement, 256>& table, uint64_t value) {
@@ -233,54 +234,27 @@ std::vector<uint8_t> decode(BitReader& reader) {
 }
 
 int main(int argc, char* argv[]) {
-    BitReader reader("Testnedatoteke/lorem.txt");
-    std::vector<uint8_t> bts = reader.getBuffer();
-
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    std::array<TableElement, 256> table = makeTable(bts);
-    encode(bts);
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-
-    std::cout << "Time taken to compress = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
-
-    BitReader reader2("test.bin");
-    begin = std::chrono::steady_clock::now();
-    std::vector<uint8_t> out = decode(reader2);
-    end = std::chrono::steady_clock::now();
-
-    std::cout << "Time taken to decompress = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
-
-    BitWriter writer;
-    for(auto& it : out) {
-        writer.writeByte(it);
+    if(argc < 4) {
+        std::cout << "Not enough arguments!";
+        return 0;
     }
 
-    writer.writeBufferToFile("lena.txt");
-    
-    return 0;
-}
+    if(strcmp(argv[1], "c") == 0) {
+        BitReader reader(argv[2]);
+        std::vector<uint8_t> bts = reader.getBuffer();
 
-/*
-int main(int argc, char* argv[]) {
-    BitReader reader("/home/risalor/Desktop/Multimedija/N2/build/Screenshot_20251108_221434.jpg");
-    std::vector<uint8_t> bts = reader.getBuffer();
-
-    std::array<TableElement, 256> table = makeTable(bts);
-
-    encode(bts);
-
-    std::vector<uint8_t> out = decode("test.bin");
-
-    return 0;
-
-    BitWriter writer;
-    for(auto& it : out) {
-        writer.writeByte(it);
-        std::cout << "a\n";
+        std::array<TableElement, 256> table = makeTable(bts);
+        encode(bts, argv[3]);
+        return 0;
+    } else if(strcmp(argv[1], "d") == 0) {
+        BitReader reader2(argv[2]);
+        std::vector<uint8_t> out = decode(reader2);
+        BitWriter writer;
+        writer.setBuffer(out);
+        writer.writeBufferToFile(argv[3]);
+    } else {
+        std::cout << "Invalid!\n";
     }
 
-    writer.writeBufferToFile("testout.jpg");
-    
     return 0;
 }
-*/

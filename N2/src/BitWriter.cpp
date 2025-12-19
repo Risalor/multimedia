@@ -69,3 +69,7 @@ void BitWriter::writeUint64(uint64_t value) {
     writeByte(static_cast<uint8_t>((value >> 8) & 0xFF));
     writeByte(static_cast<uint8_t>(value & 0xFF));
 }
+
+void BitWriter::setBuffer(std::vector<uint8_t> &buffer) {
+    m_buffer = buffer;
+}

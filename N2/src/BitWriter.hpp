@@ -19,4 +19,5 @@ public:
     std::vector<uint8_t> getBuffer();
     void writeUint32(uint32_t value);
     void writeUint64(uint64_t value);
+    void setBuffer(std::vector<uint8_t>& buffer);
 };
