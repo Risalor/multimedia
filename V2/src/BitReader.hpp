@@ -14,6 +14,7 @@ private:
     uint64_t m_currByte_save = 0;
 public:
     BitReader(const std::string& filePath);
+    BitReader(std::vector<uint8_t>& data);
     bool readNextBit();
     uint8_t readNextByte();
     bool isEnd();

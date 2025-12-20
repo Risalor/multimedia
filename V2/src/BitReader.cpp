@@ -20,6 +20,10 @@ BitReader::BitReader(const std::string &filePath) {
     file.close();
 }
 
+BitReader::BitReader(std::vector<uint8_t>& data) {
+    m_data = data;
+}
+
 bool BitReader::readNextBit() {
     bool bit = (m_data[m_currByte] >> (7 - m_currBit)) & 1;
     

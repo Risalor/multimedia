@@ -4,36 +4,6 @@
 #include <cstring>
 #include <Dense>
 
-#pragma pack(push, 1)
-struct BMPFileHeader {
-    uint16_t file_type{0x4D42};
-    uint32_t file_size{0};
-    uint16_t reserved1{0};
-    uint16_t reserved2{0};
-    uint32_t offset_data{0};
-};
-
-struct BMPInfoHeader {
-    uint32_t size{0};
-    int32_t width{0};
-    int32_t height{0};
-    uint16_t planes{1};
-    uint16_t bit_count{0};
-    uint32_t compression{0};
-    uint32_t size_image{0};
-    int32_t x_pixels_per_meter{0};
-    int32_t y_pixels_per_meter{0};
-    uint32_t colors_used{0};
-    uint32_t colors_important{0};
-};
-
-struct BMPFile {
-    BMPFileHeader fileHeader;
-    BMPInfoHeader infoHeader;
-    Eigen::MatrixXf bmp;
-};
-#pragma pack(pop)
-
 struct TableElement {
     uint32_t freq = 0;
     uint64_t upper = 0;
@@ -264,35 +234,117 @@ std::vector<uint8_t> decode(BitReader& reader) {
     return out;
 }
 
-bool getBmpDimensions(const std::string& filename, BMPFile& bmpFile) {
-    std::ifstream file(filename, std::ios_base::binary);
-    if (!file) {
-        std::cerr << "Cannot open file: " << filename << std::endl;
-        return false;
-    }
-    
+#pragma pack(push, 1)
+struct BMPFileHeader {
+    uint16_t file_type{0x4D42};
+    uint32_t file_size{0};
+    uint16_t reserved1{0};
+    uint16_t reserved2{0};
+    uint32_t offset_data{0};
+};
+
+struct BMPInfoHeader {
+    uint32_t size{0};
+    int32_t width{0};
+    int32_t height{0};
+    uint16_t planes{1};
+    uint16_t bit_count{0};
+    uint32_t compression{0};
+    uint32_t size_image{0};
+    int32_t x_pixels_per_meter{0};
+    int32_t y_pixels_per_meter{0};
+    uint32_t colors_used{0};
+    uint32_t colors_important{0};
+};
+
+struct BMPFile {
+    BMPFileHeader fileHeader;
+    BMPInfoHeader infoHeader;
+    Eigen::MatrixXf bmp;
+};
+#pragma pack(pop)
+
+bool getBmpFile(const std::string& filename, BMPFile& bmpFile) {
+    std::ifstream file(filename, std::ios::binary);
+    if (!file) return false;
+
     file.read(reinterpret_cast<char*>(&bmpFile.fileHeader), sizeof(bmpFile.fileHeader));
-    
-    if (bmpFile.fileHeader.file_type != 0x4D42) {
-        std::cerr << "Not a valid BMP file" << std::endl;
-        return false;
-    }
-    
     file.read(reinterpret_cast<char*>(&bmpFile.infoHeader), sizeof(bmpFile.infoHeader));
-    
-    bmpFile.infoHeader.width;
-    bmpFile.infoHeader.height = abs(bmpFile.infoHeader.height);
 
-    bmpFile.bmp = Eigen::MatrixXf(bmpFile.infoHeader.height, bmpFile.infoHeader.width);
+    if (bmpFile.fileHeader.file_type != 0x4D42) return false;
+    if (bmpFile.infoHeader.bit_count != 8) return false;
 
-    for(uint32_t i = 0; i < bmpFile.infoHeader.height; i++) {
-        for (uint32_t j = 0; j < bmpFile.infoHeader.width; j++) {
-            uint8_t byte;
-            file.read(reinterpret_cast<char*>(&byte), sizeof(byte));
-            bmpFile.bmp(i, j) = static_cast<float>(byte>>1);
+    const int width = bmpFile.infoHeader.width;
+    const int height = std::abs(bmpFile.infoHeader.height);
+    const bool bottom_up = bmpFile.infoHeader.height > 0;
+
+    const uint32_t row_bytes = width;
+    const uint32_t row_padding = (4 - (row_bytes % 4)) % 4;
+
+    file.seekg(bmpFile.fileHeader.offset_data, std::ios::beg);
+
+    bmpFile.bmp = Eigen::MatrixXf(height, width);
+
+    for (int i = 0; i < height; ++i) {
+        int row = bottom_up ? (height - 1 - i) : i;
+
+        for (int j = 0; j < width; ++j) {
+            uint8_t pixel;
+            file.read(reinterpret_cast<char*>(&pixel), 1);
+            bmpFile.bmp(row, j) = static_cast<float>(pixel);
         }
+
+        file.ignore(row_padding);
     }
-    
+
+    return true;
+}
+
+bool saveBmpFile(const std::string& filename, BMPFile& bmpFile) {
+    std::ofstream file(filename, std::ios::binary);
+    if (!file) return false;
+
+    const int width  = bmpFile.infoHeader.width;
+    const int height = bmpFile.bmp.rows();
+
+    const uint32_t row_bytes   = width;
+    const uint32_t row_padding = (4 - (row_bytes % 4)) % 4;
+    const uint32_t row_size    = row_bytes + row_padding;
+    const uint32_t pixel_bytes = row_size * height;
+    const uint32_t palette_size = 256 * 4;
+
+    bmpFile.infoHeader.size = sizeof(BMPInfoHeader);
+    bmpFile.infoHeader.bit_count = 8;
+    bmpFile.infoHeader.height = height;
+    bmpFile.infoHeader.size_image = pixel_bytes;
+    bmpFile.infoHeader.colors_used = 256;
+
+    bmpFile.fileHeader.offset_data =
+        sizeof(BMPFileHeader) + sizeof(BMPInfoHeader) + palette_size;
+
+    bmpFile.fileHeader.file_size =
+        bmpFile.fileHeader.offset_data + pixel_bytes;
+
+    file.write(reinterpret_cast<const char*>(&bmpFile.fileHeader), sizeof(bmpFile.fileHeader));
+    file.write(reinterpret_cast<const char*>(&bmpFile.infoHeader), sizeof(bmpFile.infoHeader));
+
+    for (int i = 0; i < 256; ++i) {
+        uint8_t entry[4] = { (uint8_t)i, (uint8_t)i, (uint8_t)i, 0 };
+        file.write(reinterpret_cast<char*>(entry), 4);
+    }
+
+    uint8_t pad = 0;
+
+    for (int i = height - 1; i >= 0; --i) {
+        for (int j = 0; j < width; ++j) {
+            float v = bmpFile.bmp(i, j);
+            v = std::clamp(v, 0.0f, 255.0f);
+            uint8_t pixel = static_cast<uint8_t>(std::round(v));
+            file.write(reinterpret_cast<char*>(&pixel), 1);
+        }
+        file.write(reinterpret_cast<char*>(&pad), row_padding);
+    }
+
     return true;
 }
 
@@ -365,16 +417,57 @@ std::vector<uint8_t> mergeAndSplitVectors(const std::vector<int16_t>& vec1, cons
     return result;
 }
 
-void compressAsBlocks(BMPFile& bmpFile, uint8_t thc) {
-    Eigen::MatrixXf H = hMat();
-    uint32_t size = (bmpFile.infoHeader.width + bmpFile.infoHeader.width % 8) * (bmpFile.infoHeader.height + bmpFile.infoHeader.height % 8);
-    uint32_t size_DC = size / 64;
-    std::vector<int16_t> flattened_AC, flattened_DC;
-    flattened_AC.reserve(size);
-    flattened_AC.resize(size);
-    flattened_DC.reserve(size_DC);
-    flattened_DC.resize(size_DC);
+std::vector<int16_t> splitAndReconstructVectors(const std::vector<uint8_t>& mergedBytes) {
+    std::vector<int16_t> allValues;
+    allValues.reserve(mergedBytes.size() / 2);
+    
+    for (size_t i = 0; i < mergedBytes.size(); i += 2) {
+        uint16_t low = mergedBytes[i];
+        uint16_t high = mergedBytes[i + 1];
+        int16_t value = static_cast<int16_t>((high << 8) | low);
+        allValues.push_back(value);
+    }
+    
+    return allValues;
+}
 
+std::vector<int16_t> reverseDCPrediction(const std::vector<int16_t>& DC_pred) {
+    if(DC_pred.empty()) return {};
+    
+    std::vector<int16_t> flattened_DC(DC_pred.size());
+    
+    flattened_DC[0] = DC_pred[0];
+    
+    for(uint32_t i = 1; i < DC_pred.size(); i++) {
+        flattened_DC[i] = flattened_DC[i-1] - DC_pred[i];
+    }
+    
+    return flattened_DC;
+}
+
+void decompressToBMP(BMPFile& bmpFile, const std::vector<int16_t>& flattened_DC, const std::vector<int16_t>& flattened_AC, const std::vector<std::vector<int>>& q_table) {
+    
+    Eigen::MatrixXf H = hMat();
+    
+    uint32_t blocks_x = (bmpFile.infoHeader.width + 7) / 8;
+    uint32_t blocks_y = (bmpFile.infoHeader.height + 7) / 8;
+    uint32_t total_blocks = blocks_x * blocks_y;
+    
+    if(flattened_DC.size() != total_blocks) {
+        std::cerr << "ERROR: DC size mismatch! Expected " << total_blocks 
+                  << ", got " << flattened_DC.size() << std::endl;
+        return;
+    }
+    
+    if(flattened_AC.size() != total_blocks * 63) {
+        std::cerr << "ERROR: AC size mismatch! Expected " << (total_blocks * 63)
+                  << ", got " << flattened_AC.size() << std::endl;
+        return;
+    }
+    
+    bmpFile.bmp = Eigen::MatrixXf(bmpFile.infoHeader.height, bmpFile.infoHeader.width);
+    bmpFile.bmp.setZero();
+    
     int zigzag[8][8] = {
         {0, 1, 5, 6,14,15,27,28},
         {2, 4, 7,13,16,26,29,42},
@@ -385,72 +478,206 @@ void compressAsBlocks(BMPFile& bmpFile, uint8_t thc) {
         {21,34,37,47,50,56,59,61},
         {35,36,48,49,57,58,62,63}
     };
-
-    std::vector<std::vector<int>> q_table = quantization_table(0);
-
+    
     uint32_t block_index = 0;
-
-    for(uint32_t i = 0; i < bmpFile.infoHeader.height; i += 8) {
-        for(uint32_t j = 0; j < bmpFile.infoHeader.width; j += 8) {
-            Eigen::MatrixXf temp;
-            if((i + 8 > bmpFile.infoHeader.height) || (j + 8 > bmpFile.infoHeader.width)) {
-                temp = Eigen::MatrixXf(8, 8);
-                temp.setZero();
-                uint32_t copy_height = std::min(8u, bmpFile.infoHeader.height - i);
-                uint32_t copy_width = std::min(8u, bmpFile.infoHeader.width - j);
-                temp.topLeftCorner(copy_height, copy_width) = bmpFile.bmp.block(i, j, copy_height, copy_width);
-            } else {
-                temp = H.transpose() * bmpFile.bmp.block(i, j, 8, 8) * H;
-            }
-
+    
+    for(uint32_t block_y = 0; block_y < blocks_y; block_y++) {
+        for(uint32_t block_x = 0; block_x < blocks_x; block_x++) {
+            uint32_t img_i = block_y * 8;
+            uint32_t img_j = block_x * 8;
+            
+            Eigen::MatrixXf coeff_matrix(8, 8);
+            coeff_matrix.setZero();
+            
+            float dc_value = static_cast<float>(flattened_DC[block_index]) * q_table[0][0];
+            coeff_matrix(0, 0) = dc_value;
+            
             for(uint8_t x = 0; x < 8; x++) {
                 for(uint8_t y = 0; y < 8; y++) {
-                    if(x == 0 && y == 0) {
-                        flattened_DC[block_index] = static_cast<int>(temp(y, x)) / q_table[y][x];
-                    } else if(abs(temp(x, y)) < thc) {
-                        flattened_AC[zigzag[y][x] + (block_index * 64)] = 0;
+                    if(x == 0 && y == 0) continue;
+                    
+                    int zigzag_idx = zigzag[x][y];
+                    int ac_index = block_index * 63 + (zigzag_idx - 1);
+                    
+                    if(ac_index < flattened_AC.size()) {
+                        int16_t ac_val = flattened_AC[ac_index];
+                        
+                        if(ac_val != 0) {
+                            float ac_value = static_cast<float>(ac_val) * q_table[x][y];
+                            coeff_matrix(x, y) = ac_value;
+                        }
                     } else {
-                        flattened_AC[zigzag[y][x] + (block_index * 64)] = static_cast<int>(temp(y, x)) / q_table[y][x];
+                        std::cerr << "ERROR: AC index out of bounds!" << std::endl;
                     }
                 }
             }
-
+            
+            Eigen::MatrixXf block_reconstructed = H * coeff_matrix * H.transpose();
+            
+            uint32_t copy_height = std::min(8u, bmpFile.infoHeader.height - img_i);
+            uint32_t copy_width = std::min(8u, bmpFile.infoHeader.width - img_j);
+            
+            bmpFile.bmp.block(img_i, img_j, copy_height, copy_width) = 
+                block_reconstructed.topLeftCorner(copy_height, copy_width);
+            
             block_index++;
         }
     }
+    
+    std::cout << "Decompressed " << block_index << " blocks" << std::endl;
+}
 
-    //std::cout << "Size: " << flattened_DC.size() << "\n";
+void compressAsBlocks(const std::string compFile_input, const std::string compFile_output, uint8_t thc, uint8_t q) {
+    BMPFile bmpFile;
+    if(!getBmpFile(compFile_input, bmpFile)) {
+        throw std::runtime_error("Could not open bmp file!");
+    }
 
-    std::vector<int16_t> DC_pred;
-    DC_pred.reserve(size_DC);
-    DC_pred.resize(size_DC);
-
+    Eigen::MatrixXf H = hMat();
+    
+    uint32_t blocks_x = (bmpFile.infoHeader.width + 7) / 8;
+    uint32_t blocks_y = (bmpFile.infoHeader.height + 7) / 8;
+    uint32_t total_blocks = blocks_x * blocks_y;
+    
+    uint32_t size_DC = total_blocks;
+    uint32_t size_AC = total_blocks * 63;
+    
+    std::vector<int16_t> flattened_DC(size_DC, 0);
+    std::vector<int16_t> flattened_AC(size_AC, 0);
+    
+    std::cout << "Blocks: " << blocks_x << "x" << blocks_y << " = " << total_blocks << std::endl;
+    std::cout << "DC size: " << flattened_DC.size() << ", AC size: " << flattened_AC.size() << std::endl;
+    
+    int zigzag[8][8] = {
+        {0, 1, 5, 6,14,15,27,28},
+        {2, 4, 7,13,16,26,29,42},
+        {3, 8,12,17,25,30,41,43},
+        {9,11,18,24,31,40,44,53},
+        {10,19,23,32,39,45,52,54},
+        {20,22,33,38,46,51,55,60},
+        {21,34,37,47,50,56,59,61},
+        {35,36,48,49,57,58,62,63}
+    };
+    
+    std::vector<std::vector<int>> q_table = quantization_table(q);
+    
+    uint32_t block_index = 0;
+    
+    for(uint32_t i = 0; i < bmpFile.infoHeader.height; i += 8) {
+        for(uint32_t j = 0; j < bmpFile.infoHeader.width; j += 8) {
+            Eigen::MatrixXf block(8, 8);
+            uint32_t copy_height = std::min(8u, bmpFile.infoHeader.height - i);
+            uint32_t copy_width = std::min(8u, bmpFile.infoHeader.width - j);
+            
+            if(copy_height < 8 || copy_width < 8) {
+                block.setZero();
+                block.topLeftCorner(copy_height, copy_width) = 
+                    bmpFile.bmp.block(i, j, copy_height, copy_width);
+            } else {
+                block = bmpFile.bmp.block(i, j, 8, 8);
+            }
+            
+            Eigen::MatrixXf temp = H.transpose() * block * H;
+            
+            for(uint8_t x = 0; x < 8; x++) {
+                for(uint8_t y = 0; y < 8; y++) {
+                    float coeff = temp(x, y);
+                    int q_value = q_table[x][y];
+                    
+                    if(x == 0 && y == 0) {
+                        flattened_DC[block_index] = static_cast<int16_t>(std::round(coeff / q_value));
+                    } else {
+                        int zigzag_idx = zigzag[x][y];
+                        int ac_index = block_index * 63 + (zigzag_idx - 1);
+                        
+                        if(std::abs(coeff) < thc || q_value == 0) {
+                            flattened_AC[ac_index] = 0;
+                        } else {
+                            flattened_AC[ac_index] = static_cast<int16_t>(std::round(coeff / q_value));
+                        }
+                    }
+                }
+            }
+            
+            block_index++;
+        }
+    }
+    
+    if(block_index != total_blocks) {
+        std::cerr << "ERROR: Processed " << block_index << " blocks, expected " << total_blocks << std::endl;
+    }
+    
+    std::vector<int16_t> DC_pred(size_DC, 0);
     DC_pred[0] = flattened_DC[0];
-
+    
     for(uint32_t i = 1; i < size_DC; i++) {
         DC_pred[i] = flattened_DC[i-1] - flattened_DC[i];
     }
-
-    /*for(auto it : flattened_AC) {
-        std::cout << " " << it;
-    }
-
-    std::cout << "\n\n";*/
-
+    
     std::vector<uint8_t> tem = mergeAndSplitVectors(DC_pred, flattened_AC);
 
-    constexpr double BYTES_PER_MIB = 1024.0 * 1024.0;
+    tem = encode(tem).getBuffer();
 
-    std::cout << static_cast<double>(encode(tem).getBuffer().size()) / BYTES_PER_MIB << "\n";
+    std::ofstream file(compFile_output, std::ios::binary);
+    file.write(reinterpret_cast<const char*>(&q), sizeof(q));
+    file.write(reinterpret_cast<const char*>(&total_blocks), sizeof(total_blocks));
+    file.write(reinterpret_cast<const char*>(&bmpFile.fileHeader), sizeof(bmpFile.fileHeader));
+    file.write(reinterpret_cast<const char*>(&bmpFile.infoHeader), sizeof(bmpFile.infoHeader));
+
+    file.write(reinterpret_cast<const char*>(tem.data()), tem.size() * sizeof(int8_t));
+}
+
+std::vector<uint8_t> readRemaining(std::ifstream& file) {
+    std::streampos currentPos = file.tellg();
+    
+    file.seekg(0, std::ios::end);
+    std::streampos endPos = file.tellg();
+    
+    std::streamsize remainingBytes = endPos - currentPos;
+    
+    file.seekg(currentPos);
+    
+    std::vector<uint8_t> data(remainingBytes);
+    file.read(reinterpret_cast<char*>(data.data()), remainingBytes);
+    
+    return data;
+}
+
+void decompress(const std::string& filePath_input, const std::string& filePath_output) {
+    std::ifstream file(filePath_input, std::ios::binary);
+    uint8_t q;
+    uint32_t total_blocks;
+    BMPFile bmpFile;
+
+    file.read(reinterpret_cast<char*>(&q), sizeof(q));
+    file.read(reinterpret_cast<char*>(&total_blocks), sizeof(total_blocks));
+    file.read(reinterpret_cast<char*>(&bmpFile.fileHeader), sizeof(bmpFile.fileHeader));
+    file.read(reinterpret_cast<char*>(&bmpFile.infoHeader), sizeof(bmpFile.infoHeader));
+    std::vector<uint8_t> data = readRemaining(file);
+
+    BitReader reader(data);
+
+    data = decode(reader);
+
+    std::vector<int16_t> all = splitAndReconstructVectors(data);
+
+    std::vector<int16_t> DC_pred(total_blocks, 0);
+    DC_pred = std::vector<int16_t>(all.begin(), all.begin() + total_blocks);
+    DC_pred = reverseDCPrediction(DC_pred);
+    std::vector<int16_t> flattened_AC = std::vector<int16_t>(all.begin() + DC_pred.size(), all.end());
+
+    std::vector<std::vector<int>> q_table = quantization_table(q);
+
+    decompressToBMP(bmpFile, DC_pred, flattened_AC, q_table);
+    
+    saveBmpFile(filePath_output, bmpFile);
 }
 
 int main() {
-    BMPFile bmpFile;
-    if (getBmpDimensions("/home/risalor/Desktop/Multimedija/V2/slike BMP/Mercury.bmp", bmpFile)) {
-        std::cout << "Width: " << bmpFile.infoHeader.width << ", Height: " << bmpFile.infoHeader.height << std::endl;
-    }
 
-    compressAsBlocks(bmpFile, 0);
+    compressAsBlocks("/home/risalor/Desktop/Multimedija/V2/slike BMP/Sunrise.bmp", "file.bin", 200, 100);
+
+    decompress("file.bin", "teh_new_test.bmp");
 
     return 0;
 }
