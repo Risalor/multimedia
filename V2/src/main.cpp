@@ -673,11 +673,128 @@ void decompress(const std::string& filePath_input, const std::string& filePath_o
     saveBmpFile(filePath_output, bmpFile);
 }
 
+double calculatePSNR(const BMPFile& original, const BMPFile& compressed) {
+    if (original.bmp.rows() != compressed.bmp.rows() ||
+        original.bmp.cols() != compressed.bmp.cols()) {
+        throw std::runtime_error("Image dimensions don't match!");
+    }
+    
+    int rows = original.bmp.rows();
+    int cols = original.bmp.cols();
+    
+    double mse = 0.0;
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            double diff = original.bmp(i, j) - compressed.bmp(i, j);
+            mse += diff * diff;
+        }
+    }
+    mse /= (rows * cols);
+    
+    if (mse == 0.0) return INFINITY;
+    
+    const double MAX_VALUE = 255.0;
+    return 20 * log10(MAX_VALUE) - 10 * log10(mse);
+}
+
+double calculateEntropy(const BMPFile& image) {
+    std::map<int, int> histogram;
+    int totalPixels = image.bmp.rows() * image.bmp.cols();
+    
+    // Build histogram
+    for (int i = 0; i < image.bmp.rows(); i++) {
+        for (int j = 0; j < image.bmp.cols(); j++) {
+            int pixel = static_cast<int>(std::round(image.bmp(i, j)));
+            histogram[pixel]++;
+        }
+    }
+    
+    // Calculate entropy
+    double entropy = 0.0;
+    for (const auto& pair : histogram) {
+        double probability = static_cast<double>(pair.second) / totalPixels;
+        entropy -= probability * log2(probability);
+    }
+    
+    return entropy;
+}
+
+double calculateBlockingArtifact(const BMPFile& image) {
+    int rows = image.bmp.rows();
+    int cols = image.bmp.cols();
+    int blockSize = 8; // JPEG uses 8x8 blocks
+    
+    double totalBlocking = 0.0;
+    int count = 0;
+    
+    // Horizontal blocking (vertical edges)
+    for (int i = 0; i < rows; i++) {
+        for (int j = blockSize; j < cols; j += blockSize) {
+            if (j >= cols) continue;
+            double diff = image.bmp(i, j) - image.bmp(i, j-1);
+            totalBlocking += diff * diff;
+            count++;
+        }
+    }
+    
+    // Vertical blocking (horizontal edges)
+    for (int i = blockSize; i < rows; i += blockSize) {
+        if (i >= rows) continue;
+        for (int j = 0; j < cols; j++) {
+            double diff = image.bmp(i, j) - image.bmp(i-1, j);
+            totalBlocking += diff * diff;
+            count++;
+        }
+    }
+    
+    if (count == 0) return 0.0;
+    return totalBlocking / count;
+}
+
+void calculateMetrics(const std::string& originalPath, 
+                     const std::string& compressedPath) {
+    BMPFile original, compressed;
+    
+    if (!getBmpFile(originalPath, original)) {
+        std::cerr << "Failed to load original image!" << std::endl;
+        return;
+    }
+    
+    if (!getBmpFile(compressedPath, compressed)) {
+        std::cerr << "Failed to load compressed image!" << std::endl;
+        return;
+    }
+    
+    // Calculate PSNR
+    double psnr = calculatePSNR(original, compressed);
+    std::cout << "PSNR: " << psnr << " dB" << std::endl;
+    
+    // Calculate Entropies
+    double entropyOriginal = calculateEntropy(original);
+    double entropyCompressed = calculateEntropy(compressed);
+    std::cout << "Original Entropy: " << entropyOriginal << " bits/pixel" << std::endl;
+    std::cout << "Compressed Entropy: " << entropyCompressed << " bits/pixel" << std::endl;
+    
+    // Calculate Blocking Artifacts
+    double blockingOriginal = calculateBlockingArtifact(original);
+    double blockingCompressed = calculateBlockingArtifact(compressed);
+    std::cout << "Original Blocking Measure: " << blockingOriginal << std::endl;
+    std::cout << "Compressed Blocking Measure: " << blockingCompressed << std::endl;
+    
+    // Calculate blocking artifact increase
+    double blockingIncrease = blockingCompressed - blockingOriginal;
+    std::cout << "Blocking Artifact Increase: " << blockingIncrease << std::endl;
+}
+
 int main() {
 
-    compressAsBlocks("/home/risalor/Desktop/Multimedija/V2/slike BMP/Sunrise.bmp", "file.bin", 200, 100);
+    std::string pathFull = "/home/risalor/Desktop/Multimedija/V2/slike BMP/Lena.bmp";
+    std::string pathcomp = "teh_new_test.bmp";
 
+    compressAsBlocks(pathFull, "file.bin", 25, 0);
     decompress("file.bin", "teh_new_test.bmp");
+
+    calculateMetrics(pathFull, pathcomp);
 
     return 0;
 }
