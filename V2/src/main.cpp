@@ -751,6 +751,53 @@ double calculateBlockingArtifact(const BMPFile& image) {
     return totalBlocking / count;
 }
 
+double calculateBlockingArtifactsFormula(const BMPFile& image) {
+    const int blockSize = 8; // JPEG uses 8x8 blocks
+    int width = image.infoHeader.width;
+    int height = image.infoHeader.height;
+    
+    int N = (width + blockSize - 1) / blockSize;  // blocks horizontally
+    int M = (height + blockSize - 1) / blockSize; // blocks vertically
+    
+    double totalBlocking = 0.0;
+    int count = 0;
+    
+    // Horizontal boundaries (vertical edges between blocks)
+    // Sum over vertical boundaries (j = block boundaries horizontally)
+    for (int j = 1; j < N; j++) {
+        int col = j * blockSize;  // Block boundary column
+        if (col >= width) continue;
+        
+        // Sum over all rows
+        for (int i = 0; i < height; i++) {
+            if (col > 0) {
+                double diff = image.bmp(i, col) - image.bmp(i, col - 1);
+                totalBlocking += std::abs(diff);
+                count++;
+            }
+        }
+    }
+    
+    // Vertical boundaries (horizontal edges between blocks)
+    // Sum over horizontal boundaries (i = block boundaries vertically)
+    for (int i = 1; i < M; i++) {
+        int row = i * blockSize;  // Block boundary row
+        if (row >= height) continue;
+        
+        // Sum over all columns
+        for (int j = 0; j < width; j++) {
+            if (row > 0) {
+                double diff = image.bmp(row, j) - image.bmp(row - 1, j);
+                totalBlocking += std::abs(diff);
+                count++;
+            }
+        }
+    }
+    
+    if (count == 0) return 0.0;
+    return totalBlocking / count;  // Average absolute difference
+}
+
 void calculateMetrics(const std::string& originalPath, 
                      const std::string& compressedPath) {
     BMPFile original, compressed;
@@ -776,8 +823,8 @@ void calculateMetrics(const std::string& originalPath,
     std::cout << "Compressed Entropy: " << entropyCompressed << " bits/pixel" << std::endl;
     
     // Calculate Blocking Artifacts
-    double blockingOriginal = calculateBlockingArtifact(original);
-    double blockingCompressed = calculateBlockingArtifact(compressed);
+    double blockingOriginal = calculateBlockingArtifactsFormula(original);
+    double blockingCompressed = calculateBlockingArtifactsFormula(compressed);
     std::cout << "Original Blocking Measure: " << blockingOriginal << std::endl;
     std::cout << "Compressed Blocking Measure: " << blockingCompressed << std::endl;
     
@@ -788,13 +835,16 @@ void calculateMetrics(const std::string& originalPath,
 
 int main() {
 
-    std::string pathFull = "/home/risalor/Desktop/Multimedija/V2/slike BMP/Lena.bmp";
+    std::string pathFull = "/home/risalor/Desktop/Multimedija/V2/slike BMP/Balloons.bmp";
     std::string pathcomp = "teh_new_test.bmp";
 
-    compressAsBlocks(pathFull, "file.bin", 25, 0);
-    decompress("file.bin", "teh_new_test.bmp");
+    for(uint8_t i = 25; i <= 100; i += 25) {
+        std::cout << "thc: " << (int)i << "\n";
+        compressAsBlocks(pathFull, "file.bin", i, 0);
+        decompress("file.bin", "teh_new_test.bmp");
 
-    calculateMetrics(pathFull, pathcomp);
+        calculateMetrics(pathFull, pathcomp);
+    }
 
     return 0;
 }
