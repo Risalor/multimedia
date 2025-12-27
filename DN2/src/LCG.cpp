@@ -5,12 +5,15 @@
 LCG::LCG(uint32_t seed, uint32_t a, uint32_t b, uint32_t m) 
     : m_seed(seed), m_a(a), m_b(b), m_m(m) {
     if (m_m == 0) m_m = 1;
+    m_seed %= m_m;
 }
 
 LCG::LCG() : m_seed(0), m_a(0), m_b(0), m_m(1) { }
 
 uint32_t LCG::getRandom(uint32_t range_x, uint32_t range_y) {
-    m_seed = (m_a * m_seed + m_b) % m_m;
+    if (m_m == 0) return range_x;
+    
+    m_seed = static_cast<uint32_t>((static_cast<uint64_t>(m_a) * m_seed + m_b) % m_m);
     
     if (range_x == range_y) return range_x;
     
@@ -20,10 +23,12 @@ uint32_t LCG::getRandom(uint32_t range_x, uint32_t range_y) {
         range_y = temp;
     }
     
-    uint64_t range_size = static_cast<uint64_t>(range_y - range_x + 1);
+    uint64_t range_size = static_cast<uint64_t>(range_y) - range_x + 1;
     
     uint64_t scaled = static_cast<uint64_t>(m_seed) * range_size;
     uint32_t result = static_cast<uint32_t>(range_x + (scaled / m_m));
+    
+    if (result > range_y) result = range_y;
     
     return result;
 }

@@ -454,14 +454,12 @@ void decompressToBMP(BMPFile& bmpFile, const std::vector<int16_t>& flattened_DC,
     uint32_t total_blocks = blocks_x * blocks_y;
     
     if(flattened_DC.size() != total_blocks) {
-        std::cerr << "ERROR: DC size mismatch! Expected " << total_blocks 
-                  << ", got " << flattened_DC.size() << std::endl;
+        std::cerr << "ERROR: DC size mismatch! Expected " << total_blocks << ", got " << flattened_DC.size() << std::endl;
         return;
     }
     
     if(flattened_AC.size() != total_blocks * 63) {
-        std::cerr << "ERROR: AC size mismatch! Expected " << (total_blocks * 63)
-                  << ", got " << flattened_AC.size() << std::endl;
+        std::cerr << "ERROR: AC size mismatch! Expected " << (total_blocks * 63) << ", got " << flattened_AC.size() << std::endl;
         return;
     }
     
@@ -523,21 +521,211 @@ void decompressToBMP(BMPFile& bmpFile, const std::vector<int16_t>& flattened_DC,
             block_index++;
         }
     }
-    
-    std::cout << "Decompressed " << block_index << " blocks" << std::endl;
 }
 
-void encodeMassage(std::vector<int16_t>& flattened_AC, uint8_t M, uint8_t thc, BitReader& reader, LCG& gen) {
-    std::vector<uint8_t> indexes;
-
+std::vector<uint32_t> generateMRandoms(LCG& gen, uint8_t M, uint8_t thc) {
+    std::vector<uint32_t> indexes;
     
+    int max_index = 32;
+    
+    if (thc > 0) {
+        max_index = 64 - thc;
+        if (max_index > 32) max_index = 32;
+        if (max_index < 4) max_index = 4;
+    }
+    
+    int min_start = 4;
+    int max_start = max_index - 3;
+    
+    if (min_start > max_start) {
+        return indexes;
+    }
+    
+    for (int i = 0; i < M; i++) {
+        bool valid_position = false;
+        int attempts = 0;
+        const int MAX_ATTEMPTS = 100;
+        
+        while (!valid_position && attempts < MAX_ATTEMPTS) {
+            attempts++;
+    
+            uint32_t rand_val = gen.getRandom(0, UINT32_MAX);
+            uint32_t start_idx = min_start + (rand_val % (max_start - min_start + 1));
+            
+            valid_position = true;
+            for (size_t j = 0; j < indexes.size(); j += 3) {
+                uint32_t existing_start = indexes[j];
+                if (!(start_idx + 2 < existing_start || start_idx > existing_start + 2)) {
+                    valid_position = false;
+                    break;
+                }
+            }
+            
+            if (valid_position) {
+                indexes.push_back(start_idx);
+                indexes.push_back(start_idx + 1);
+                indexes.push_back(start_idx + 2);
+            }
+        }
+        
+        if (!valid_position) {
+            break;
+        }
+    }
+    return indexes;
+}
+
+std::vector<uint8_t> createMessageBuffer(const std::string& message) {
+    uint32_t messageLengthInBits = static_cast<uint32_t>(message.size() * 8);
+    
+    std::vector<uint8_t> buffer;
+    buffer.reserve(sizeof(uint32_t) + message.size());
+    
+    buffer.push_back(static_cast<uint8_t>((messageLengthInBits >> 24) & 0xFF));
+    buffer.push_back(static_cast<uint8_t>((messageLengthInBits >> 16) & 0xFF));
+    buffer.push_back(static_cast<uint8_t>((messageLengthInBits >> 8) & 0xFF));
+    buffer.push_back(static_cast<uint8_t>(messageLengthInBits & 0xFF));
+    
+    buffer.insert(buffer.end(), message.begin(), message.end());
+    
+    return buffer;
+}
+
+
+void encodeMassage(std::vector<int16_t>& flattened_AC, uint8_t M, uint8_t thc, BitReader& reader) {
+    size_t total_bits = reader.getBuffer().size() * 8;
+    size_t bit_pos = 0;
+    uint32_t total_blocks = flattened_AC.size() / 63;
+
+    LCG gen(thc * M, 1664525, 1013904223, 4294967296u - 1);
+    
+    for (uint32_t block_idx = 0; block_idx < total_blocks; block_idx++) {
+        if (bit_pos + 1 >= total_bits) {
+            break;
+        }
+        
+        std::vector<uint32_t> block_triplets = generateMRandoms(gen, M, thc);
+        
+        if (block_triplets.empty()) {
+            continue;
+        }
+        
+        size_t triplet_idx = 0;
+        
+        while (triplet_idx + 2 < block_triplets.size() && bit_pos + 1 < total_bits) {
+            uint8_t x1 = reader.readNextBit();
+            uint8_t x2 = reader.readNextBit();
+            
+            uint32_t rel_idx1 = block_triplets[triplet_idx];
+            uint32_t rel_idx2 = block_triplets[triplet_idx + 1];
+            uint32_t rel_idx3 = block_triplets[triplet_idx + 2];
+            
+            uint32_t abs_idx1 = block_idx * 63 + rel_idx1;
+            uint32_t abs_idx2 = block_idx * 63 + rel_idx2;
+            uint32_t abs_idx3 = block_idx * 63 + rel_idx3;
+            
+            if (abs_idx3 >= flattened_AC.size()) {
+                break;
+            }
+            
+            uint8_t C1 = flattened_AC[abs_idx1] & 1;
+            uint8_t C2 = flattened_AC[abs_idx2] & 1;
+            uint8_t C3 = flattened_AC[abs_idx3] & 1;
+            
+            uint8_t current_x1 = C1 ^ C2;
+            uint8_t current_x2 = C2 ^ C3;
+            
+            if (x1 == current_x1 && x2 != current_x2) {
+                flattened_AC[abs_idx3] ^= 1;
+            } else if (x1 != current_x1 && x2 == current_x2) {
+                flattened_AC[abs_idx1] ^= 1;
+            } else if (x1 != current_x1 && x2 != current_x2) {
+                flattened_AC[abs_idx2] ^= 1;
+            }
+            
+            triplet_idx += 3;
+            bit_pos += 2;
+        }
+    }
+}
+
+std::string decodeMessage(std::vector<int16_t>& flattened_AC, uint8_t M, uint8_t thc) {
+    std::vector<uint8_t> extracted_bits;
+    std::vector<uint8_t> message_bytes;
+    
+    uint32_t total_blocks = flattened_AC.size() / 63;
+    LCG gen(thc * M, 1664525, 1013904223, 4294967296u - 1);
+    
+    for (uint32_t block_idx = 0; block_idx < total_blocks; block_idx++) {
+        std::vector<uint32_t> block_triplets = generateMRandoms(gen, M, thc);
+        
+        if (block_triplets.empty()) {
+            continue;
+        }
+        
+        size_t triplet_idx = 0;
+        
+        while (triplet_idx + 2 < block_triplets.size()) {
+            uint32_t rel_idx1 = block_triplets[triplet_idx];
+            uint32_t rel_idx2 = block_triplets[triplet_idx + 1];
+            uint32_t rel_idx3 = block_triplets[triplet_idx + 2];
+            
+            uint32_t abs_idx1 = block_idx * 63 + rel_idx1;
+            uint32_t abs_idx2 = block_idx * 63 + rel_idx2;
+            uint32_t abs_idx3 = block_idx * 63 + rel_idx3;
+            
+            if (abs_idx3 >= flattened_AC.size()) {
+                break;
+            }
+            
+            uint8_t C1 = flattened_AC[abs_idx1] & 1;
+            uint8_t C2 = flattened_AC[abs_idx2] & 1;
+            uint8_t C3 = flattened_AC[abs_idx3] & 1;
+            
+            uint8_t x1 = C1 ^ C2;
+            uint8_t x2 = C2 ^ C3;
+            
+            extracted_bits.push_back(x1);
+            extracted_bits.push_back(x2);
+            
+            triplet_idx += 3;
+            
+            if (extracted_bits.size() >= 32) {
+                uint32_t message_length_bits = 0;
+                for (int i = 0; i < 32; i++) {
+                    message_length_bits |= (extracted_bits[i] << (31 - i));
+                }
+                
+                size_t total_bits_needed = 32 + message_length_bits;
+                
+                if (extracted_bits.size() >= total_bits_needed) {
+                    for (size_t i = 32; i < total_bits_needed; i += 8) {
+                        if (i + 7 < extracted_bits.size()) {
+                            uint8_t byte = 0;
+                            for (int j = 0; j < 8; j++) {
+                                byte |= (extracted_bits[i + j] << (7 - j));
+                            }
+                            message_bytes.push_back(byte);
+                        }
+                    }
+                    
+                    return std::string(message_bytes.begin(), message_bytes.end());
+                }
+            }
+        }
+    }
+    
+    if (!message_bytes.empty()) {
+        return std::string(message_bytes.begin(), message_bytes.end());
+    }
+    
+    return "";
 }
 
 void compressAsBlocks(const std::string compFile_input, const std::string compFile_output, uint8_t thc, std::string massage, uint8_t M) {
     BMPFile bmpFile;
 
-    LCG gen(thc * M, 69069, 0, 4294967295u);
-    std::vector<uint8_t> msg(massage.begin(), massage.end());
+    std::vector<uint8_t> msg = createMessageBuffer(massage);
     BitReader MassageReader(msg);
 
     if(!getBmpFile(compFile_input, bmpFile)) {
@@ -603,11 +791,16 @@ void compressAsBlocks(const std::string compFile_input, const std::string compFi
                 }
             }
             
-            block_index++;
-
-            for (size_t i = 0; i < thc; i++) {
-                flattened_AC[(block_index * 63) - i] = 0;
+            for (size_t k = 0; k < thc; k++) {
+                if (k < 63) {
+                    int idx = (block_index * 63) + (63 - 1 - k);
+                    if (idx >= 0 && idx < flattened_AC.size()) {
+                        flattened_AC[idx] = 0;
+                    }
+                }
             }
+
+            block_index++;
         }
     }
     
@@ -621,6 +814,8 @@ void compressAsBlocks(const std::string compFile_input, const std::string compFi
     for(uint32_t i = 1; i < size_DC; i++) {
         DC_pred[i] = flattened_DC[i-1] - flattened_DC[i];
     }
+
+    encodeMassage(flattened_AC, M, thc, MassageReader);
     
     std::vector<uint8_t> tem = mergeAndSplitVectors(DC_pred, flattened_AC);
 
@@ -650,7 +845,7 @@ std::vector<uint8_t> readRemaining(std::ifstream& file) {
     return data;
 }
 
-void decompress(const std::string& filePath_input, const std::string& filePath_output) {
+void decompress(const std::string& filePath_input, const std::string& filePath_output, uint8_t M, uint8_t N) {
     std::ifstream file(filePath_input, std::ios::binary);
     uint32_t total_blocks;
     BMPFile bmpFile;
@@ -670,6 +865,8 @@ void decompress(const std::string& filePath_input, const std::string& filePath_o
     DC_pred = std::vector<int16_t>(all.begin(), all.begin() + total_blocks);
     DC_pred = reverseDCPrediction(DC_pred);
     std::vector<int16_t> flattened_AC = std::vector<int16_t>(all.begin() + DC_pred.size(), all.end());
+
+    std::cout << "\nThe hidden massage is: " << decodeMessage(flattened_AC, M, N) << "\n";
 
     decompressToBMP(bmpFile, DC_pred, flattened_AC);
     
@@ -704,7 +901,6 @@ double calculateEntropy(const BMPFile& image) {
     std::map<int, int> histogram;
     int totalPixels = image.bmp.rows() * image.bmp.cols();
     
-    // Build histogram
     for (int i = 0; i < image.bmp.rows(); i++) {
         for (int j = 0; j < image.bmp.cols(); j++) {
             int pixel = static_cast<int>(std::round(image.bmp(i, j)));
@@ -712,7 +908,6 @@ double calculateEntropy(const BMPFile& image) {
         }
     }
     
-    // Calculate entropy
     double entropy = 0.0;
     for (const auto& pair : histogram) {
         double probability = static_cast<double>(pair.second) / totalPixels;
@@ -725,12 +920,11 @@ double calculateEntropy(const BMPFile& image) {
 double calculateBlockingArtifact(const BMPFile& image) {
     int rows = image.bmp.rows();
     int cols = image.bmp.cols();
-    int blockSize = 8; // JPEG uses 8x8 blocks
+    int blockSize = 8;
     
     double totalBlocking = 0.0;
     int count = 0;
     
-    // Horizontal blocking (vertical edges)
     for (int i = 0; i < rows; i++) {
         for (int j = blockSize; j < cols; j += blockSize) {
             if (j >= cols) continue;
@@ -740,7 +934,6 @@ double calculateBlockingArtifact(const BMPFile& image) {
         }
     }
     
-    // Vertical blocking (horizontal edges)
     for (int i = blockSize; i < rows; i += blockSize) {
         if (i >= rows) continue;
         for (int j = 0; j < cols; j++) {
@@ -755,23 +948,20 @@ double calculateBlockingArtifact(const BMPFile& image) {
 }
 
 double calculateBlockingArtifactsFormula(const BMPFile& image) {
-    const int blockSize = 8; // JPEG uses 8x8 blocks
+    const int blockSize = 8;
     int width = image.infoHeader.width;
     int height = image.infoHeader.height;
     
-    int N = (width + blockSize - 1) / blockSize;  // blocks horizontally
-    int M = (height + blockSize - 1) / blockSize; // blocks vertically
+    int N = (width + blockSize - 1) / blockSize;
+    int M = (height + blockSize - 1) / blockSize;
     
     double totalBlocking = 0.0;
     int count = 0;
     
-    // Horizontal boundaries (vertical edges between blocks)
-    // Sum over vertical boundaries (j = block boundaries horizontally)
     for (int j = 1; j < N; j++) {
-        int col = j * blockSize;  // Block boundary column
+        int col = j * blockSize;
         if (col >= width) continue;
         
-        // Sum over all rows
         for (int i = 0; i < height; i++) {
             if (col > 0) {
                 double diff = image.bmp(i, col) - image.bmp(i, col - 1);
@@ -781,13 +971,10 @@ double calculateBlockingArtifactsFormula(const BMPFile& image) {
         }
     }
     
-    // Vertical boundaries (horizontal edges between blocks)
-    // Sum over horizontal boundaries (i = block boundaries vertically)
     for (int i = 1; i < M; i++) {
-        int row = i * blockSize;  // Block boundary row
+        int row = i * blockSize;
         if (row >= height) continue;
         
-        // Sum over all columns
         for (int j = 0; j < width; j++) {
             if (row > 0) {
                 double diff = image.bmp(row, j) - image.bmp(row - 1, j);
@@ -798,7 +985,7 @@ double calculateBlockingArtifactsFormula(const BMPFile& image) {
     }
     
     if (count == 0) return 0.0;
-    return totalBlocking / count;  // Average absolute difference
+    return totalBlocking / count;
 }
 
 void calculateMetrics(const std::string& originalPath, 
@@ -815,23 +1002,19 @@ void calculateMetrics(const std::string& originalPath,
         return;
     }
     
-    // Calculate PSNR
     double psnr = calculatePSNR(original, compressed);
     std::cout << "PSNR: " << psnr << " dB" << std::endl;
     
-    // Calculate Entropies
     double entropyOriginal = calculateEntropy(original);
     double entropyCompressed = calculateEntropy(compressed);
     std::cout << "Original Entropy: " << entropyOriginal << " bits/pixel" << std::endl;
     std::cout << "Compressed Entropy: " << entropyCompressed << " bits/pixel" << std::endl;
     
-    // Calculate Blocking Artifacts
     double blockingOriginal = calculateBlockingArtifactsFormula(original);
     double blockingCompressed = calculateBlockingArtifactsFormula(compressed);
     std::cout << "Original Blocking Measure: " << blockingOriginal << std::endl;
     std::cout << "Compressed Blocking Measure: " << blockingCompressed << std::endl;
     
-    // Calculate blocking artifact increase
     double blockingIncrease = blockingCompressed - blockingOriginal;
     std::cout << "Blocking Artifact Increase: " << blockingIncrease << std::endl;
 }
@@ -841,8 +1024,8 @@ int main() {
     std::string pathFull = "/home/risalor/Desktop/Multimedija/V2/slike BMP/Balloons.bmp";
     std::string pathcomp = "teh_new_test.bmp";
 
-    compressAsBlocks(pathFull, "file.bin", 60, "hiiiiiiiiiiii", 4);
-    decompress("file.bin", "teh_new_test.bmp");
+    compressAsBlocks(pathFull, "file.bin", 30, "hallo my name is kristjan how are you on this nice day??", 2);
+    decompress("file.bin", "teh_new_test.bmp", 2, 30);
 
     calculateMetrics(pathFull, pathcomp);
 
