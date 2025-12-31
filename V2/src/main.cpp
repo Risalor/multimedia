@@ -529,9 +529,12 @@ void decompressToBMP(BMPFile& bmpFile, const std::vector<int16_t>& flattened_DC,
 
 void compressAsBlocks(const std::string compFile_input, const std::string compFile_output, uint8_t thc, uint8_t q) {
     BMPFile bmpFile;
+    
     if(!getBmpFile(compFile_input, bmpFile)) {
         throw std::runtime_error("Could not open bmp file!");
     }
+
+    uint32_t init_size = bmpFile.bmp.size();
 
     Eigen::MatrixXf H = hMat();
     
@@ -604,7 +607,7 @@ void compressAsBlocks(const std::string compFile_input, const std::string compFi
     }
     
     if(block_index != total_blocks) {
-        std::cerr << "ERROR: Processed " << block_index << " blocks, expected " << total_blocks << std::endl;
+        std::cerr << "ERROR: Processed " << block_index << " blocks, expected " << total_blocks << "\n";
     }
     
     std::vector<int16_t> DC_pred(size_DC, 0);
@@ -617,6 +620,8 @@ void compressAsBlocks(const std::string compFile_input, const std::string compFi
     std::vector<uint8_t> tem = mergeAndSplitVectors(DC_pred, flattened_AC);
 
     tem = encode(tem).getBuffer();
+
+    std::cout << "Compression ratio: " << ((double)tem.size())/((double)init_size) << "\n";
 
     std::ofstream file(compFile_output, std::ios::binary);
     file.write(reinterpret_cast<const char*>(&q), sizeof(q));
@@ -833,17 +838,82 @@ void calculateMetrics(const std::string& originalPath,
     std::cout << "Blocking Artifact Increase: " << blockingIncrease << std::endl;
 }
 
-int main() {
+void printUsage(const char* programName) {
+    std::cerr << "Usage:\n";
+    std::cerr << "  For compression: " << programName << " <input_file> c <output_file> <thc>\n";
+    std::cerr << "  For decompression: " << programName << " <input_file> d <output_file>\n";
+    std::cerr << "\nOptions:\n";
+    std::cerr << "  c - Compress the input file\n";
+    std::cerr << "  d - Decompress the input file\n";
+    std::cerr << "\nArguments:\n";
+    std::cerr << "  input_file  - Path to the input file\n";
+    std::cerr << "  output_file - Path to the output file\n";
+    std::cerr << "  thc         - Threshold value (0-250) for compression\n";
+    std::cerr << "\nExamples:\n";
+    std::cerr << "  " << programName << " input.bmp c compressed.bin 50\n";
+    std::cerr << "  " << programName << " compressed.bin d output.bmp\n";
+}
 
-    std::string pathFull = "/home/risalor/Desktop/Multimedija/V2/slike BMP/Balloons.bmp";
-    std::string pathcomp = "teh_new_test.bmp";
+int main(int argc, char* argv[]) {
+    if (argc < 4) {
+        printUsage(argv[0]);
+        return 1;
+    }
 
-    for(uint8_t i = 25; i <= 100; i += 25) {
-        std::cout << "thc: " << (int)i << "\n";
-        compressAsBlocks(pathFull, "file.bin", i, 0);
-        decompress("file.bin", "teh_new_test.bmp");
-
-        calculateMetrics(pathFull, pathcomp);
+    std::string inputFile = argv[1];
+    std::string option = argv[2];
+    std::string outputFile = argv[3];
+    
+    if (option != "c" && option != "d") {
+        std::cerr << "Error: Invalid option '" << option << "'. Use 'c' for compress or 'd' for decompress.\n";
+        printUsage(argv[0]);
+        return 1;
+    }
+    
+    if (option == "c") {
+        if (argc != 5) {
+            std::cerr << "Error: Compression requires thc parameter.\n";
+            printUsage(argv[0]);
+            return 1;
+        }
+        
+        int thc;
+        try {
+            thc = std::stoi(argv[4]);
+            if (thc < 0 || thc > 255) {
+                std::cerr << "Error: thc must be between 0 and 100\n";
+                return 1;
+            }
+        } catch (const std::invalid_argument& e) {
+            std::cerr << "Error: thc must be a valid integer\n";
+            return 1;
+        } catch (const std::out_of_range& e) {
+            std::cerr << "Error: thc value is out of range\n";
+            return 1;
+        }
+        
+        std::cout << "Compressing " << inputFile << " with thc=" << thc << " to " << outputFile << "\n";
+        try {
+            compressAsBlocks(inputFile, outputFile, static_cast<uint8_t>(thc), 0);
+            std::cout << "Compression completed successfully.\n";
+        } catch (const std::exception& e) {
+            std::cerr << "Compression error: " << e.what() << "\n";
+            return 1;
+        }
+    } else if (option == "d") {
+        if (argc > 5) {
+            printUsage(argv[0]);
+            return 1;
+        }
+        
+        std::cout << "Decompressing " << inputFile << " to " << outputFile << "\n";
+        try {
+            decompress(inputFile, outputFile);
+            std::cout << "Decompression completed successfully.\n";
+        } catch (const std::exception& e) {
+            std::cerr << "Decompression error: " << e.what() << "\n";
+            return 1;
+        }
     }
 
     return 0;
