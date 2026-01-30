@@ -21,4 +21,4 @@ include_directories(${DIR_LIST})
 file(GLOB_RECURSE SOURCES "${PROJECT_ROOT_DIR}/*.c*")
 message(STATUS "Compiling the following sources: ${SOURCES}")
 
-add_executable(N1 ${SOURCES})
+add_executable(V2 ${SOURCES})

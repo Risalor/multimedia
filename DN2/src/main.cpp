@@ -845,7 +845,7 @@ std::vector<uint8_t> readRemaining(std::ifstream& file) {
     return data;
 }
 
-void decompress(const std::string& filePath_input, const std::string& filePath_output, uint8_t M, uint8_t N) {
+std::string decompress(const std::string& filePath_input, const std::string& filePath_output, uint8_t M, uint8_t N) {
     std::ifstream file(filePath_input, std::ios::binary);
     uint32_t total_blocks;
     BMPFile bmpFile;
@@ -866,168 +866,119 @@ void decompress(const std::string& filePath_input, const std::string& filePath_o
     DC_pred = reverseDCPrediction(DC_pred);
     std::vector<int16_t> flattened_AC = std::vector<int16_t>(all.begin() + DC_pred.size(), all.end());
 
-    std::cout << "\nThe hidden massage is: " << decodeMessage(flattened_AC, M, N) << "\n";
+    std::string msg = decodeMessage(flattened_AC, M, N);
+
+    std::cout << "\nThe hidden massage is: " << msg << "\n";
 
     decompressToBMP(bmpFile, DC_pred, flattened_AC);
     
     saveBmpFile(filePath_output, bmpFile);
+
+    return msg;
 }
 
-double calculatePSNR(const BMPFile& original, const BMPFile& compressed) {
-    if (original.bmp.rows() != compressed.bmp.rows() ||
-        original.bmp.cols() != compressed.bmp.cols()) {
-        throw std::runtime_error("Image dimensions don't match!");
-    }
-    
-    int rows = original.bmp.rows();
-    int cols = original.bmp.cols();
-    
-    double mse = 0.0;
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            double diff = original.bmp(i, j) - compressed.bmp(i, j);
-            mse += diff * diff;
-        }
-    }
-    mse /= (rows * cols);
-    
-    if (mse == 0.0) return INFINITY;
-    
-    const double MAX_VALUE = 255.0;
-    return 20 * log10(MAX_VALUE) - 10 * log10(mse);
+void printUsage() {
+    std::cout << "Usage: vaja3 <vhodna datoteka> <opcija> <vhodno/izhodno sporočilo> <N> <M>\n\n";
+    std::cout << "Arguments:\n";
+    std::cout << "  <vhodna datoteka> - pot do poljubne slike/stisnjene slike.\n";
+    std::cout << "  <opcija>:\n";
+    std::cout << "        h - skrivanje sporočila (hide)\n";
+    std::cout << "        e - ekstrakcija sporočila (extract)\n";
+    std::cout << "  <vhodno/izhodno sporočilo> - pot do vhodnega/izhodnega tekstovnega sporočila.\n";
+    std::cout << "  <N> - prag pri kompresiji (threshold for compression)\n";
+    std::cout << "  <M> - število unikatnih množic trojic koeficientov (unique triplets for F5)\n";
 }
 
-double calculateEntropy(const BMPFile& image) {
-    std::map<int, int> histogram;
-    int totalPixels = image.bmp.rows() * image.bmp.cols();
-    
-    for (int i = 0; i < image.bmp.rows(); i++) {
-        for (int j = 0; j < image.bmp.cols(); j++) {
-            int pixel = static_cast<int>(std::round(image.bmp(i, j)));
-            histogram[pixel]++;
-        }
+std::string readMessageFromFile(const std::string& filepath) {
+    std::ifstream file(filepath);
+    if (!file.is_open()) {
+        std::cerr << "Napaka: Ni mogoče odpreti datoteke s sporočilom: " << filepath << "\n";
+        return "";
     }
     
-    double entropy = 0.0;
-    for (const auto& pair : histogram) {
-        double probability = static_cast<double>(pair.second) / totalPixels;
-        entropy -= probability * log2(probability);
+    std::string message;
+    std::string line;
+    while (std::getline(file, line)) {
+        message += line + "\n";
     }
     
-    return entropy;
+    if (!message.empty() && message.back() == '\n') {
+        message.pop_back();
+    }
+    
+    return message;
 }
 
-double calculateBlockingArtifact(const BMPFile& image) {
-    int rows = image.bmp.rows();
-    int cols = image.bmp.cols();
-    int blockSize = 8;
-    
-    double totalBlocking = 0.0;
-    int count = 0;
-    
-    for (int i = 0; i < rows; i++) {
-        for (int j = blockSize; j < cols; j += blockSize) {
-            if (j >= cols) continue;
-            double diff = image.bmp(i, j) - image.bmp(i, j-1);
-            totalBlocking += diff * diff;
-            count++;
-        }
+bool writeMessageToFile(const std::string& filepath, const std::string& message) {
+    std::ofstream file(filepath);
+    if (!file.is_open()) {
+        std::cerr << "Napaka: Ni mogoče ustvariti datoteke za sporočilo: " << filepath << "\n";
+        return false;
     }
     
-    for (int i = blockSize; i < rows; i += blockSize) {
-        if (i >= rows) continue;
-        for (int j = 0; j < cols; j++) {
-            double diff = image.bmp(i, j) - image.bmp(i-1, j);
-            totalBlocking += diff * diff;
-            count++;
-        }
-    }
-    
-    if (count == 0) return 0.0;
-    return totalBlocking / count;
+    file << message;
+    return true;
 }
 
-double calculateBlockingArtifactsFormula(const BMPFile& image) {
-    const int blockSize = 8;
-    int width = image.infoHeader.width;
-    int height = image.infoHeader.height;
-    
-    int N = (width + blockSize - 1) / blockSize;
-    int M = (height + blockSize - 1) / blockSize;
-    
-    double totalBlocking = 0.0;
-    int count = 0;
-    
-    for (int j = 1; j < N; j++) {
-        int col = j * blockSize;
-        if (col >= width) continue;
+int main(int argc, char* argv[]) {
+    if (argc != 6) {
+        std::cerr << "Napaka: Napačno število argumentov!\n\n";
+        printUsage();
+        return 1;
+    }
+
+    std::string inputFile = argv[1];
+    std::string option = argv[2];
+    std::string messageFile = argv[3];
+    std::string N_str = argv[4];
+    std::string M_str = argv[5];
+
+    if (option != "h" && option != "e") {
+        std::cerr << "Napaka: Neveljavna opcija. Uporabite 'h' za skrivanje ali 'e' za ekstrakcijo.\n";
+        printUsage();
+        return 1;
+    }
+
+    int N, M;
+    try {
+        N = std::stoi(N_str);
+        M = std::stoi(M_str);
         
-        for (int i = 0; i < height; i++) {
-            if (col > 0) {
-                double diff = image.bmp(i, col) - image.bmp(i, col - 1);
-                totalBlocking += std::abs(diff);
-                count++;
-            }
+        if (N <= 0 || M <= 0) {
+            std::cerr << "Napaka: N in M morata biti pozitivna števila.\n";
+            return 1;
         }
+    } catch (const std::exception& e) {
+        std::cerr << "Napaka: N in M morata biti celi števili.\n";
+        return 1;
     }
-    
-    for (int i = 1; i < M; i++) {
-        int row = i * blockSize;
-        if (row >= height) continue;
+
+    if (option == "h") {
+        std::string message = readMessageFromFile(messageFile);
+        if (message.empty()) {
+            std::cerr << "Napaka: Sporočilo je prazno ali datoteka ne obstaja.\n";
+            return 1;
+        }
+
+        std::cout << "Sporočilo za skrivanje: " << message << "\n";
         
-        for (int j = 0; j < width; j++) {
-            if (row > 0) {
-                double diff = image.bmp(row, j) - image.bmp(row - 1, j);
-                totalBlocking += std::abs(diff);
-                count++;
-            }
-        }
+        std::string outputBin = "compressed.bin";
+        
+        compressAsBlocks(inputFile, outputBin, N, message, M);
+        
+        std::cout << "Sporočilo skrito in datoteka stisnjena v: " << outputBin << "\n";
+
+    } else if (option == "e") {
+
+        std::string outputImage = "decompressed.bmp";
+
+        std::string extractedMessage = decompress(inputFile, outputImage, M, N);
+        
+        std::cout << "Sporočilo ekstrahirano v: " << messageFile << "\n";
+        std::cout << "Slika dekomprimirana v: " << outputImage << "\n";
+        
+        writeMessageToFile(messageFile, extractedMessage);
     }
-    
-    if (count == 0) return 0.0;
-    return totalBlocking / count;
-}
-
-void calculateMetrics(const std::string& originalPath, 
-                     const std::string& compressedPath) {
-    BMPFile original, compressed;
-    
-    if (!getBmpFile(originalPath, original)) {
-        std::cerr << "Failed to load original image!" << std::endl;
-        return;
-    }
-    
-    if (!getBmpFile(compressedPath, compressed)) {
-        std::cerr << "Failed to load compressed image!" << std::endl;
-        return;
-    }
-    
-    double psnr = calculatePSNR(original, compressed);
-    std::cout << "PSNR: " << psnr << " dB" << std::endl;
-    
-    double entropyOriginal = calculateEntropy(original);
-    double entropyCompressed = calculateEntropy(compressed);
-    std::cout << "Original Entropy: " << entropyOriginal << " bits/pixel" << std::endl;
-    std::cout << "Compressed Entropy: " << entropyCompressed << " bits/pixel" << std::endl;
-    
-    double blockingOriginal = calculateBlockingArtifactsFormula(original);
-    double blockingCompressed = calculateBlockingArtifactsFormula(compressed);
-    std::cout << "Original Blocking Measure: " << blockingOriginal << std::endl;
-    std::cout << "Compressed Blocking Measure: " << blockingCompressed << std::endl;
-    
-    double blockingIncrease = blockingCompressed - blockingOriginal;
-    std::cout << "Blocking Artifact Increase: " << blockingIncrease << std::endl;
-}
-
-int main() {
-
-    std::string pathFull = "/home/risalor/Desktop/Multimedija/V2/slike BMP/Balloons.bmp";
-    std::string pathcomp = "teh_new_test.bmp";
-
-    compressAsBlocks(pathFull, "file.bin", 30, "hallo my name is kristjan how are you on this nice day??", 2);
-    decompress("file.bin", "teh_new_test.bmp", 2, 30);
-
-    calculateMetrics(pathFull, pathcomp);
 
     return 0;
 }

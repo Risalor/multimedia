@@ -1,0 +1,25 @@
+=== COMPRESSION ANALYSIS SUMMARY ===
+
+Total test cases analyzed: 18
+
+Parameter ranges tested:
+  N values: [np.int64(1), np.int64(20), np.int64(40)]
+  M values: [np.int64(1), np.int64(3), np.int64(5)]
+  Messages tested: 2
+
+Overall Statistics:
+  Average PSNR: 31.80 dB
+  Average Blocking Increase: 1.6446
+  PSNR Range: 31.13 - 32.18 dB
+
+Best configurations by message:
+
+  Message: 'Hallo world!'
+    Best PSNR: 32.17 dB
+    Parameters: N=1, M=3
+    Blocking Increase: 1.6976
+
+  Message: 'This is a new world!'
+    Best PSNR: 32.18 dB
+    Parameters: N=1, M=1
+    Blocking Increase: 1.6975

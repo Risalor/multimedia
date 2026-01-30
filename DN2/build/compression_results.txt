@@ -1,0 +1,236 @@
+=== COMPRESSION TEST RESULTS ===
+
+Configuration:
+  N: 1
+  M: 1
+  Message: "Hallo world!"
+Metrics:
+  PSNR: 32.144 dB
+  Original Entropy: 7.3459 bits/pixel
+  Compressed Entropy: 7.42396 bits/pixel
+  Original Blocking: 2.21583
+  Compressed Blocking: 3.91323
+  Blocking Increase: 1.69739
+----------------------------------------
+
+Configuration:
+  N: 1
+  M: 1
+  Message: "This is a new world!"
+Metrics:
+  PSNR: 32.1838 dB
+  Original Entropy: 7.3459 bits/pixel
+  Compressed Entropy: 7.42391 bits/pixel
+  Original Blocking: 2.21583
+  Compressed Blocking: 3.91332
+  Blocking Increase: 1.69748
+----------------------------------------
+
+Configuration:
+  N: 1
+  M: 3
+  Message: "Hallo world!"
+Metrics:
+  PSNR: 32.1661 dB
+  Original Entropy: 7.3459 bits/pixel
+  Compressed Entropy: 7.42395 bits/pixel
+  Original Blocking: 2.21583
+  Compressed Blocking: 3.9134
+  Blocking Increase: 1.69757
+----------------------------------------
+
+Configuration:
+  N: 1
+  M: 3
+  Message: "This is a new world!"
+Metrics:
+  PSNR: 32.1575 dB
+  Original Entropy: 7.3459 bits/pixel
+  Compressed Entropy: 7.42395 bits/pixel
+  Original Blocking: 2.21583
+  Compressed Blocking: 3.91332
+  Blocking Increase: 1.69748
+----------------------------------------
+
+Configuration:
+  N: 1
+  M: 5
+  Message: "Hallo world!"
+Metrics:
+  PSNR: 32.1441 dB
+  Original Entropy: 7.3459 bits/pixel
+  Compressed Entropy: 7.42395 bits/pixel
+  Original Blocking: 2.21583
+  Compressed Blocking: 3.91339
+  Blocking Increase: 1.69756
+----------------------------------------
+
+Configuration:
+  N: 1
+  M: 5
+  Message: "This is a new world!"
+Metrics:
+  PSNR: 32.1135 dB
+  Original Entropy: 7.3459 bits/pixel
+  Compressed Entropy: 7.42396 bits/pixel
+  Original Blocking: 2.21583
+  Compressed Blocking: 3.91342
+  Blocking Increase: 1.69759
+----------------------------------------
+
+Configuration:
+  N: 20
+  M: 1
+  Message: "Hallo world!"
+Metrics:
+  PSNR: 32.0174 dB
+  Original Entropy: 7.3459 bits/pixel
+  Compressed Entropy: 7.4211 bits/pixel
+  Original Blocking: 2.21583
+  Compressed Blocking: 3.89566
+  Blocking Increase: 1.67982
+----------------------------------------
+
+Configuration:
+  N: 20
+  M: 1
+  Message: "This is a new world!"
+Metrics:
+  PSNR: 32.0622 dB
+  Original Entropy: 7.3459 bits/pixel
+  Compressed Entropy: 7.42104 bits/pixel
+  Original Blocking: 2.21583
+  Compressed Blocking: 3.89551
+  Blocking Increase: 1.67968
+----------------------------------------
+
+Configuration:
+  N: 20
+  M: 3
+  Message: "Hallo world!"
+Metrics:
+  PSNR: 32.0704 dB
+  Original Entropy: 7.3459 bits/pixel
+  Compressed Entropy: 7.42103 bits/pixel
+  Original Blocking: 2.21583
+  Compressed Blocking: 3.89313
+  Blocking Increase: 1.67729
+----------------------------------------
+
+Configuration:
+  N: 20
+  M: 3
+  Message: "This is a new world!"
+Metrics:
+  PSNR: 31.9775 dB
+  Original Entropy: 7.3459 bits/pixel
+  Compressed Entropy: 7.42113 bits/pixel
+  Original Blocking: 2.21583
+  Compressed Blocking: 3.89686
+  Blocking Increase: 1.68102
+----------------------------------------
+
+Configuration:
+  N: 20
+  M: 5
+  Message: "Hallo world!"
+Metrics:
+  PSNR: 32.0687 dB
+  Original Entropy: 7.3459 bits/pixel
+  Compressed Entropy: 7.42111 bits/pixel
+  Original Blocking: 2.21583
+  Compressed Blocking: 3.89321
+  Blocking Increase: 1.67737
+----------------------------------------
+
+Configuration:
+  N: 20
+  M: 5
+  Message: "This is a new world!"
+Metrics:
+  PSNR: 31.9617 dB
+  Original Entropy: 7.3459 bits/pixel
+  Compressed Entropy: 7.42115 bits/pixel
+  Original Blocking: 2.21583
+  Compressed Blocking: 3.89711
+  Blocking Increase: 1.68128
+----------------------------------------
+
+Configuration:
+  N: 40
+  M: 1
+  Message: "Hallo world!"
+Metrics:
+  PSNR: 31.2297 dB
+  Original Entropy: 7.3459 bits/pixel
+  Compressed Entropy: 7.40873 bits/pixel
+  Original Blocking: 2.21583
+  Compressed Blocking: 3.77111
+  Blocking Increase: 1.55527
+----------------------------------------
+
+Configuration:
+  N: 40
+  M: 1
+  Message: "This is a new world!"
+Metrics:
+  PSNR: 31.1735 dB
+  Original Entropy: 7.3459 bits/pixel
+  Compressed Entropy: 7.40877 bits/pixel
+  Original Blocking: 2.21583
+  Compressed Blocking: 3.77499
+  Blocking Increase: 1.55916
+----------------------------------------
+
+Configuration:
+  N: 40
+  M: 3
+  Message: "Hallo world!"
+Metrics:
+  PSNR: 31.2522 dB
+  Original Entropy: 7.3459 bits/pixel
+  Compressed Entropy: 7.40866 bits/pixel
+  Original Blocking: 2.21583
+  Compressed Blocking: 3.77579
+  Blocking Increase: 1.55995
+----------------------------------------
+
+Configuration:
+  N: 40
+  M: 3
+  Message: "This is a new world!"
+Metrics:
+  PSNR: 31.3639 dB
+  Original Entropy: 7.3459 bits/pixel
+  Compressed Entropy: 7.40834 bits/pixel
+  Original Blocking: 2.21583
+  Compressed Blocking: 3.7649
+  Blocking Increase: 1.54907
+----------------------------------------
+
+Configuration:
+  N: 40
+  M: 5
+  Message: "Hallo world!"
+Metrics:
+  PSNR: 31.153 dB
+  Original Entropy: 7.3459 bits/pixel
+  Compressed Entropy: 7.40874 bits/pixel
+  Original Blocking: 2.21583
+  Compressed Blocking: 3.77286
+  Blocking Increase: 1.55702
+----------------------------------------
+
+Configuration:
+  N: 40
+  M: 5
+  Message: "This is a new world!"
+Metrics:
+  PSNR: 31.1257 dB
+  Original Entropy: 7.3459 bits/pixel
+  Compressed Entropy: 7.40887 bits/pixel
+  Original Blocking: 2.21583
+  Compressed Blocking: 3.77687
+  Blocking Increase: 1.56103
+----------------------------------------
+
