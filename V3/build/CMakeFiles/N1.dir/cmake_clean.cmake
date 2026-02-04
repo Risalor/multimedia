@@ -1,5 +1,9 @@
 file(REMOVE_RECURSE
   "CMakeFiles/N1.dir/link.d"
+  "CMakeFiles/N1.dir/src/BitReader.cpp.o"
+  "CMakeFiles/N1.dir/src/BitReader.cpp.o.d"
+  "CMakeFiles/N1.dir/src/BitWriter.cpp.o"
+  "CMakeFiles/N1.dir/src/BitWriter.cpp.o.d"
   "CMakeFiles/N1.dir/src/main.cpp.o"
   "CMakeFiles/N1.dir/src/main.cpp.o.d"
   "N1"

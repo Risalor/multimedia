@@ -2,6 +2,8 @@ N1: \
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/Scrt1.o \
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crti.o \
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o \
+  CMakeFiles/N1.dir/src/BitReader.cpp.o \
+  CMakeFiles/N1.dir/src/BitWriter.cpp.o \
   CMakeFiles/N1.dir/src/main.cpp.o \
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/libavformat.so \
   /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/libavcodec.so \
@@ -67,7 +69,7 @@ N1: \
   /usr/lib/libopus.so.0 \
   /usr/lib/librav1e.so.0.8 \
   /usr/lib/libspeex.so.1 \
-  /usr/lib/libSvtAv1Enc.so.3 \
+  /usr/lib/libSvtAv1Enc.so.4 \
   /usr/lib/libtheoraenc.so.2 \
   /usr/lib/libtheoradec.so.2 \
   /usr/lib/libvorbis.so.0 \
@@ -151,6 +153,10 @@ N1: \
 /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crti.o:
 
 /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o:
+
+CMakeFiles/N1.dir/src/BitReader.cpp.o:
+
+CMakeFiles/N1.dir/src/BitWriter.cpp.o:
 
 CMakeFiles/N1.dir/src/main.cpp.o:
 
@@ -282,7 +288,7 @@ CMakeFiles/N1.dir/src/main.cpp.o:
 
 /usr/lib/libspeex.so.1:
 
-/usr/lib/libSvtAv1Enc.so.3:
+/usr/lib/libSvtAv1Enc.so.4:
 
 /usr/lib/libtheoraenc.so.2:
 

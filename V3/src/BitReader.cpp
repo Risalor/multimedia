@@ -51,15 +51,6 @@ uint8_t BitReader::readNextByte() {
     return byte;
 }
 
-uint16_t BitReader::readUint16() {
-    uint16_t value = 0;
-    for (int i = 0; i < 2; i++) {
-        uint8_t byte = static_cast<uint8_t>(readNextByte());
-        value = (value << 8) | byte;
-    }
-    return value;
-}
-
 uint32_t BitReader::readUint32() {
     uint32_t value = 0;
     for (int i = 0; i < 4; i++) {

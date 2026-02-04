@@ -21,7 +21,6 @@ public:
     void setSavePoint();
     void loadFromSavePoint();
     void resetToStart();
-    uint16_t readUint16();
     uint32_t readUint32();
     uint64_t readUint64();
     std::vector<uint8_t> getBuffer();

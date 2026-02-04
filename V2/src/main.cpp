@@ -454,14 +454,12 @@ void decompressToBMP(BMPFile& bmpFile, const std::vector<int16_t>& flattened_DC,
     uint32_t total_blocks = blocks_x * blocks_y;
     
     if(flattened_DC.size() != total_blocks) {
-        std::cerr << "ERROR: DC size mismatch! Expected " << total_blocks 
-                  << ", got " << flattened_DC.size() << std::endl;
+        std::cerr << "ERROR: DC size mismatch! Expected " << total_blocks << ", got " << flattened_DC.size() << std::endl;
         return;
     }
     
     if(flattened_AC.size() != total_blocks * 63) {
-        std::cerr << "ERROR: AC size mismatch! Expected " << (total_blocks * 63)
-                  << ", got " << flattened_AC.size() << std::endl;
+        std::cerr << "ERROR: AC size mismatch! Expected " << (total_blocks * 63) << ", got " << flattened_AC.size() << std::endl;
         return;
     }
     

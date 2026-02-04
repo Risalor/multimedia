@@ -129,6 +129,54 @@ N1/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/N1.dir/build.make CMakeFiles/N1.dir/build
 .PHONY : N1/fast
 
+src/BitReader.o: src/BitReader.cpp.o
+.PHONY : src/BitReader.o
+
+# target to build an object file
+src/BitReader.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/N1.dir/build.make CMakeFiles/N1.dir/src/BitReader.cpp.o
+.PHONY : src/BitReader.cpp.o
+
+src/BitReader.i: src/BitReader.cpp.i
+.PHONY : src/BitReader.i
+
+# target to preprocess a source file
+src/BitReader.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/N1.dir/build.make CMakeFiles/N1.dir/src/BitReader.cpp.i
+.PHONY : src/BitReader.cpp.i
+
+src/BitReader.s: src/BitReader.cpp.s
+.PHONY : src/BitReader.s
+
+# target to generate assembly for a file
+src/BitReader.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/N1.dir/build.make CMakeFiles/N1.dir/src/BitReader.cpp.s
+.PHONY : src/BitReader.cpp.s
+
+src/BitWriter.o: src/BitWriter.cpp.o
+.PHONY : src/BitWriter.o
+
+# target to build an object file
+src/BitWriter.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/N1.dir/build.make CMakeFiles/N1.dir/src/BitWriter.cpp.o
+.PHONY : src/BitWriter.cpp.o
+
+src/BitWriter.i: src/BitWriter.cpp.i
+.PHONY : src/BitWriter.i
+
+# target to preprocess a source file
+src/BitWriter.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/N1.dir/build.make CMakeFiles/N1.dir/src/BitWriter.cpp.i
+.PHONY : src/BitWriter.cpp.i
+
+src/BitWriter.s: src/BitWriter.cpp.s
+.PHONY : src/BitWriter.s
+
+# target to generate assembly for a file
+src/BitWriter.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/N1.dir/build.make CMakeFiles/N1.dir/src/BitWriter.cpp.s
+.PHONY : src/BitWriter.cpp.s
+
 src/main.o: src/main.cpp.o
 .PHONY : src/main.o
 
@@ -162,6 +210,12 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... N1"
+	@echo "... src/BitReader.o"
+	@echo "... src/BitReader.i"
+	@echo "... src/BitReader.s"
+	@echo "... src/BitWriter.o"
+	@echo "... src/BitWriter.i"
+	@echo "... src/BitWriter.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"

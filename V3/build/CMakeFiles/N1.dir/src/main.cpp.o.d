@@ -149,18 +149,64 @@ CMakeFiles/N1.dir/src/main.cpp.o: \
  /usr/include/c++/15.2.1/bits/stl_vector.h \
  /usr/include/c++/15.2.1/bits/stl_bvector.h \
  /usr/include/c++/15.2.1/bits/vector.tcc \
- /usr/include/libavcodec/avcodec.h /usr/include/libavutil/samplefmt.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/stdint.h \
- /usr/include/stdint.h /usr/include/bits/stdint-uintn.h \
- /usr/include/bits/stdint-least.h /usr/include/libavutil/attributes.h \
- /usr/include/libavutil/avutil.h /usr/include/libavutil/common.h \
- /usr/include/inttypes.h \
+ /usr/include/c++/15.2.1/x86_64-pc-linux-gnu/bits/stdc++.h \
+ /usr/include/c++/15.2.1/cassert /usr/include/assert.h \
+ /usr/include/c++/15.2.1/cfloat \
+ /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/float.h \
+ /usr/include/c++/15.2.1/climits \
  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/limits.h \
  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/syslimits.h \
  /usr/include/limits.h /usr/include/bits/posix1_lim.h \
  /usr/include/bits/local_lim.h /usr/include/linux/limits.h \
  /usr/include/bits/posix2_lim.h /usr/include/bits/xopen_lim.h \
- /usr/include/bits/uio_lim.h /usr/include/c++/15.2.1/math.h \
+ /usr/include/bits/uio_lim.h /usr/include/c++/15.2.1/csetjmp \
+ /usr/include/setjmp.h /usr/include/c++/15.2.1/cstdarg \
+ /usr/include/c++/15.2.1/cstdint \
+ /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/stdint.h \
+ /usr/include/stdint.h /usr/include/bits/stdint-uintn.h \
+ /usr/include/bits/stdint-least.h /usr/include/c++/15.2.1/algorithm \
+ /usr/include/c++/15.2.1/bits/stl_algo.h \
+ /usr/include/c++/15.2.1/bits/algorithmfwd.h \
+ /usr/include/c++/15.2.1/bits/stl_heap.h \
+ /usr/include/c++/15.2.1/bits/uniform_int_dist.h \
+ /usr/include/c++/15.2.1/bits/stl_tempbuf.h \
+ /usr/include/c++/15.2.1/pstl/glue_algorithm_defs.h \
+ /usr/include/c++/15.2.1/pstl/execution_defs.h \
+ /usr/include/c++/15.2.1/bitset /usr/include/c++/15.2.1/functional \
+ /usr/include/c++/15.2.1/bits/std_function.h \
+ /usr/include/c++/15.2.1/unordered_map \
+ /usr/include/c++/15.2.1/bits/unordered_map.h \
+ /usr/include/c++/15.2.1/bits/hashtable.h \
+ /usr/include/c++/15.2.1/bits/hashtable_policy.h \
+ /usr/include/c++/15.2.1/ext/aligned_buffer.h \
+ /usr/include/c++/15.2.1/bits/enable_special_members.h \
+ /usr/include/c++/15.2.1/bits/node_handle.h \
+ /usr/include/c++/15.2.1/bits/erase_if.h /usr/include/c++/15.2.1/array \
+ /usr/include/c++/15.2.1/compare /usr/include/c++/15.2.1/iterator \
+ /usr/include/c++/15.2.1/bits/stream_iterator.h \
+ /usr/include/c++/15.2.1/limits /usr/include/c++/15.2.1/memory \
+ /usr/include/c++/15.2.1/bits/stl_raw_storage_iter.h \
+ /usr/include/c++/15.2.1/bits/align.h \
+ /usr/include/c++/15.2.1/bits/unique_ptr.h \
+ /usr/include/c++/15.2.1/bits/shared_ptr.h \
+ /usr/include/c++/15.2.1/bits/shared_ptr_base.h \
+ /usr/include/c++/15.2.1/bits/allocated_ptr.h \
+ /usr/include/c++/15.2.1/ext/concurrence.h \
+ /usr/include/c++/15.2.1/bits/shared_ptr_atomic.h \
+ /usr/include/c++/15.2.1/bits/atomic_base.h \
+ /usr/include/c++/15.2.1/bits/atomic_lockfree_defines.h \
+ /usr/include/c++/15.2.1/backward/auto_ptr.h \
+ /usr/include/c++/15.2.1/pstl/glue_memory_defs.h \
+ /usr/include/c++/15.2.1/numeric \
+ /usr/include/c++/15.2.1/bits/stl_numeric.h \
+ /usr/include/c++/15.2.1/pstl/glue_numeric_defs.h \
+ /usr/include/c++/15.2.1/utility \
+ /usr/include/c++/15.2.1/bits/stl_relops.h /usr/include/c++/15.2.1/atomic \
+ /usr/include/c++/15.2.1/ratio /usr/include/c++/15.2.1/scoped_allocator \
+ /usr/include/c++/15.2.1/typeindex /usr/include/c++/15.2.1/any \
+ /usr/include/c++/15.2.1/optional /usr/include/c++/15.2.1/variant \
+ /usr/include/c++/15.2.1/bits/monostate.h \
+ /usr/include/c++/15.2.1/bits/parse_numbers.h \
  /usr/include/c++/15.2.1/cmath /usr/include/math.h \
  /usr/include/bits/math-vector.h /usr/include/bits/libm-simd-decl-stubs.h \
  /usr/include/bits/flt-eval-method.h /usr/include/bits/fp-logb.h \
@@ -168,7 +214,7 @@ CMakeFiles/N1.dir/src/main.cpp.o: \
  /usr/include/bits/mathcalls-helper-functions.h \
  /usr/include/bits/mathcalls.h /usr/include/bits/mathcalls-narrow.h \
  /usr/include/bits/iscanonical.h /usr/include/c++/15.2.1/bits/specfun.h \
- /usr/include/c++/15.2.1/limits /usr/include/c++/15.2.1/tr1/gamma.tcc \
+ /usr/include/c++/15.2.1/tr1/gamma.tcc \
  /usr/include/c++/15.2.1/tr1/special_function_util.h \
  /usr/include/c++/15.2.1/tr1/bessel_function.tcc \
  /usr/include/c++/15.2.1/tr1/beta_function.tcc \
@@ -180,8 +226,105 @@ CMakeFiles/N1.dir/src/main.cpp.o: \
  /usr/include/c++/15.2.1/tr1/poly_hermite.tcc \
  /usr/include/c++/15.2.1/tr1/poly_laguerre.tcc \
  /usr/include/c++/15.2.1/tr1/riemann_zeta.tcc \
- /usr/include/c++/15.2.1/stdlib.h /usr/include/string.h \
- /usr/include/strings.h /usr/include/libavutil/attributes.h \
+ /usr/include/c++/15.2.1/csignal /usr/include/signal.h \
+ /usr/include/bits/signum-generic.h /usr/include/bits/signum-arch.h \
+ /usr/include/bits/types/sig_atomic_t.h \
+ /usr/include/bits/types/siginfo_t.h /usr/include/bits/types/__sigval_t.h \
+ /usr/include/bits/siginfo-arch.h /usr/include/bits/siginfo-consts.h \
+ /usr/include/bits/siginfo-consts-arch.h \
+ /usr/include/bits/types/sigval_t.h /usr/include/bits/types/sigevent_t.h \
+ /usr/include/bits/sigevent-consts.h /usr/include/bits/sigaction.h \
+ /usr/include/bits/sigcontext.h /usr/include/bits/types/stack_t.h \
+ /usr/include/sys/ucontext.h /usr/include/bits/sigstack.h \
+ /usr/include/bits/sigstksz.h /usr/include/unistd.h \
+ /usr/include/bits/posix_opt.h /usr/include/bits/environments.h \
+ /usr/include/bits/confname.h /usr/include/bits/getopt_posix.h \
+ /usr/include/bits/getopt_core.h /usr/include/bits/unistd_ext.h \
+ /usr/include/linux/close_range.h /usr/include/bits/ss_flags.h \
+ /usr/include/bits/types/struct_sigstack.h /usr/include/bits/sigthread.h \
+ /usr/include/bits/signal_ext.h /usr/include/c++/15.2.1/cstring \
+ /usr/include/string.h /usr/include/strings.h \
+ /usr/include/c++/15.2.1/ctime /usr/include/c++/15.2.1/cfenv \
+ /usr/include/c++/15.2.1/fenv.h /usr/include/fenv.h \
+ /usr/include/bits/fenv.h /usr/include/c++/15.2.1/cinttypes \
+ /usr/include/inttypes.h /usr/include/c++/15.2.1/cuchar \
+ /usr/include/uchar.h /usr/include/c++/15.2.1/complex \
+ /usr/include/c++/15.2.1/sstream /usr/include/c++/15.2.1/bits/sstream.tcc \
+ /usr/include/c++/15.2.1/deque /usr/include/c++/15.2.1/bits/stl_deque.h \
+ /usr/include/c++/15.2.1/bits/deque.tcc /usr/include/c++/15.2.1/fstream \
+ /usr/include/c++/15.2.1/bits/codecvt.h \
+ /usr/include/c++/15.2.1/x86_64-pc-linux-gnu/bits/basic_file.h \
+ /usr/include/c++/15.2.1/x86_64-pc-linux-gnu/bits/c++io.h \
+ /usr/include/c++/15.2.1/bits/fstream.tcc /usr/include/c++/15.2.1/iomanip \
+ /usr/include/c++/15.2.1/locale \
+ /usr/include/c++/15.2.1/bits/locale_facets_nonio.h \
+ /usr/include/c++/15.2.1/x86_64-pc-linux-gnu/bits/time_members.h \
+ /usr/include/c++/15.2.1/x86_64-pc-linux-gnu/bits/messages_members.h \
+ /usr/include/libintl.h \
+ /usr/include/c++/15.2.1/bits/locale_facets_nonio.tcc \
+ /usr/include/c++/15.2.1/bits/locale_conv.h \
+ /usr/include/c++/15.2.1/bits/quoted_string.h \
+ /usr/include/c++/15.2.1/list /usr/include/c++/15.2.1/bits/stl_list.h \
+ /usr/include/c++/15.2.1/bits/list.tcc /usr/include/c++/15.2.1/map \
+ /usr/include/c++/15.2.1/bits/stl_tree.h \
+ /usr/include/c++/15.2.1/bits/stl_map.h \
+ /usr/include/c++/15.2.1/bits/stl_multimap.h \
+ /usr/include/c++/15.2.1/queue /usr/include/c++/15.2.1/bits/stl_queue.h \
+ /usr/include/c++/15.2.1/set /usr/include/c++/15.2.1/bits/stl_set.h \
+ /usr/include/c++/15.2.1/bits/stl_multiset.h \
+ /usr/include/c++/15.2.1/stack /usr/include/c++/15.2.1/bits/stl_stack.h \
+ /usr/include/c++/15.2.1/valarray \
+ /usr/include/c++/15.2.1/bits/valarray_array.h \
+ /usr/include/c++/15.2.1/bits/valarray_array.tcc \
+ /usr/include/c++/15.2.1/bits/valarray_before.h \
+ /usr/include/c++/15.2.1/bits/slice_array.h \
+ /usr/include/c++/15.2.1/bits/valarray_after.h \
+ /usr/include/c++/15.2.1/bits/gslice.h \
+ /usr/include/c++/15.2.1/bits/gslice_array.h \
+ /usr/include/c++/15.2.1/bits/mask_array.h \
+ /usr/include/c++/15.2.1/bits/indirect_array.h \
+ /usr/include/c++/15.2.1/chrono /usr/include/c++/15.2.1/bits/chrono.h \
+ /usr/include/c++/15.2.1/codecvt \
+ /usr/include/c++/15.2.1/condition_variable \
+ /usr/include/c++/15.2.1/bits/std_mutex.h \
+ /usr/include/c++/15.2.1/bits/unique_lock.h \
+ /usr/include/c++/15.2.1/forward_list \
+ /usr/include/c++/15.2.1/bits/forward_list.h \
+ /usr/include/c++/15.2.1/bits/forward_list.tcc \
+ /usr/include/c++/15.2.1/future /usr/include/c++/15.2.1/mutex \
+ /usr/include/c++/15.2.1/bits/atomic_futex.h \
+ /usr/include/c++/15.2.1/bits/std_thread.h /usr/include/c++/15.2.1/random \
+ /usr/include/c++/15.2.1/bits/random.h \
+ /usr/include/c++/15.2.1/x86_64-pc-linux-gnu/bits/opt_random.h \
+ /usr/include/c++/15.2.1/bits/random.tcc /usr/include/c++/15.2.1/regex \
+ /usr/include/c++/15.2.1/bits/regex_constants.h \
+ /usr/include/c++/15.2.1/bits/regex_error.h \
+ /usr/include/c++/15.2.1/bits/regex_automaton.h \
+ /usr/include/c++/15.2.1/bits/regex_automaton.tcc \
+ /usr/include/c++/15.2.1/bits/regex_scanner.h \
+ /usr/include/c++/15.2.1/bits/regex_scanner.tcc \
+ /usr/include/c++/15.2.1/bits/regex_compiler.h \
+ /usr/include/c++/15.2.1/bits/regex_compiler.tcc \
+ /usr/include/c++/15.2.1/bits/regex.h \
+ /usr/include/c++/15.2.1/bits/regex.tcc \
+ /usr/include/c++/15.2.1/bits/regex_executor.h \
+ /usr/include/c++/15.2.1/bits/regex_executor.tcc \
+ /usr/include/c++/15.2.1/thread \
+ /usr/include/c++/15.2.1/bits/this_thread_sleep.h \
+ /usr/include/c++/15.2.1/unordered_set \
+ /usr/include/c++/15.2.1/bits/unordered_set.h \
+ /usr/include/c++/15.2.1/shared_mutex /usr/include/c++/15.2.1/charconv \
+ /usr/include/c++/15.2.1/filesystem /usr/include/c++/15.2.1/bits/fs_fwd.h \
+ /usr/include/c++/15.2.1/bits/fs_path.h \
+ /usr/include/c++/15.2.1/bits/fs_dir.h \
+ /usr/include/c++/15.2.1/bits/fs_ops.h \
+ /usr/include/c++/15.2.1/memory_resource \
+ /home/risalor/Desktop/Multimedija/V3/src/BitWriter.hpp \
+ /home/risalor/Desktop/Multimedija/V3/src/BitReader.hpp \
+ /usr/include/libavcodec/avcodec.h /usr/include/libavutil/samplefmt.h \
+ /usr/include/libavutil/attributes.h /usr/include/libavutil/avutil.h \
+ /usr/include/libavutil/common.h /usr/include/c++/15.2.1/math.h \
+ /usr/include/c++/15.2.1/stdlib.h /usr/include/libavutil/attributes.h \
  /usr/include/libavutil/error.h /usr/include/libavutil/macros.h \
  /usr/include/libavutil/avconfig.h /usr/include/libavutil/version.h \
  /usr/include/libavutil/mem.h /usr/include/libavutil/rational.h \
@@ -221,46 +364,10 @@ CMakeFiles/N1.dir/src/main.cpp.o: \
  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/emmintrin.h \
  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/xmmintrin.h \
  /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/mm_malloc.h \
- /usr/include/c++/15.2.1/complex /usr/include/c++/15.2.1/sstream \
- /usr/include/c++/15.2.1/bits/sstream.tcc \
  /home/risalor/Desktop/Multimedija/V3/src/Eigen/src/Core/util/MKL_support.h \
- /usr/include/c++/15.2.1/functional \
- /usr/include/c++/15.2.1/bits/std_function.h \
- /usr/include/c++/15.2.1/unordered_map \
- /usr/include/c++/15.2.1/bits/unordered_map.h \
- /usr/include/c++/15.2.1/bits/hashtable.h \
- /usr/include/c++/15.2.1/bits/hashtable_policy.h \
- /usr/include/c++/15.2.1/ext/aligned_buffer.h \
- /usr/include/c++/15.2.1/bits/enable_special_members.h \
- /usr/include/c++/15.2.1/bits/node_handle.h \
- /usr/include/c++/15.2.1/bits/erase_if.h /usr/include/c++/15.2.1/array \
- /usr/include/c++/15.2.1/compare /usr/include/c++/15.2.1/cstring \
- /usr/include/c++/15.2.1/climits /usr/include/c++/15.2.1/algorithm \
- /usr/include/c++/15.2.1/bits/stl_algo.h \
- /usr/include/c++/15.2.1/bits/algorithmfwd.h \
- /usr/include/c++/15.2.1/bits/stl_heap.h \
- /usr/include/c++/15.2.1/bits/uniform_int_dist.h \
- /usr/include/c++/15.2.1/bits/stl_tempbuf.h \
- /usr/include/c++/15.2.1/pstl/glue_algorithm_defs.h \
- /usr/include/c++/15.2.1/pstl/execution_defs.h \
- /usr/include/c++/15.2.1/memory \
- /usr/include/c++/15.2.1/bits/stl_raw_storage_iter.h \
- /usr/include/c++/15.2.1/bits/align.h \
- /usr/include/c++/15.2.1/bits/unique_ptr.h \
- /usr/include/c++/15.2.1/bits/shared_ptr.h \
- /usr/include/c++/15.2.1/bits/shared_ptr_base.h \
- /usr/include/c++/15.2.1/bits/allocated_ptr.h \
- /usr/include/c++/15.2.1/ext/concurrence.h \
- /usr/include/c++/15.2.1/bits/shared_ptr_atomic.h \
- /usr/include/c++/15.2.1/bits/atomic_base.h \
- /usr/include/c++/15.2.1/bits/atomic_lockfree_defines.h \
- /usr/include/c++/15.2.1/backward/auto_ptr.h \
- /usr/include/c++/15.2.1/pstl/glue_memory_defs.h \
  /home/risalor/Desktop/Multimedija/V3/src/Eigen/src/Core/util/Constants.h \
  /home/risalor/Desktop/Multimedija/V3/src/Eigen/src/Core/util/Meta.h \
- /usr/include/c++/15.2.1/cstdint \
  /home/risalor/Desktop/Multimedija/V3/src/Eigen/src/Core/util/Assert.h \
- /usr/include/c++/15.2.1/cassert /usr/include/assert.h \
  /home/risalor/Desktop/Multimedija/V3/src/Eigen/src/Core/util/ForwardDeclarations.h \
  /home/risalor/Desktop/Multimedija/V3/src/Eigen/src/Core/util/StaticAssert.h \
  /home/risalor/Desktop/Multimedija/V3/src/Eigen/src/Core/util/XprHelper.h \
@@ -467,113 +574,4 @@ CMakeFiles/N1.dir/src/main.cpp.o: \
  /home/risalor/Desktop/Multimedija/V3/src/Eigen/src/Eigenvalues/RealQZ.h \
  /home/risalor/Desktop/Multimedija/V3/src/Eigen/src/Eigenvalues/GeneralizedEigenSolver.h \
  /home/risalor/Desktop/Multimedija/V3/src/Eigen/src/Eigenvalues/./RealQZ.h \
- /home/risalor/Desktop/Multimedija/V3/src/Eigen/src/Eigenvalues/MatrixBaseEigenvalues.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/immintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/x86gprintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/ia32intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/adxintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/bmiintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/bmi2intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/cetintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/cldemoteintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/clflushoptintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/clwbintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/clzerointrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/cmpccxaddintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/enqcmdintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/fxsrintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/lzcntintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/lwpintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/movdirintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/mwaitintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/mwaitxintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/pconfigintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/popcntintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/pkuintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/prfchiintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/raointintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/rdseedintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/rtmintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/serializeintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/sgxintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/tbmintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/tsxldtrkintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/uintrintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/waitpkgintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/wbnoinvdintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/xsaveintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/xsavecintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/xsaveoptintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/xsavesintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/xtestintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/hresetintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/usermsrintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/pmmintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/tmmintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/smmintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/wmmintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avxintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avxvnniintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avxifmaintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avxvnniint8intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avxvnniint16intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx2intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512fintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512cdintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512vlintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512bwintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512dqintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512vlbwintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512vldqintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512ifmaintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512ifmavlintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512vbmiintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512vbmivlintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512vpopcntdqintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512vbmi2intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512vbmi2vlintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512vnniintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512vnnivlintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512vpopcntdqvlintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512bitalgintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512bitalgvlintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512vp2intersectintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512vp2intersectvlintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512fp16intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512fp16vlintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/shaintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/sm3intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/sha512intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/sm4intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/fmaintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/f16cintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/gfniintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/vaesintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/vpclmulqdqintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512bf16vlintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx512bf16intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avxneconvertintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/amxtileintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/amxint8intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/amxbf16intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/amxcomplexintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/amxavx512intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/amxtf32intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/amxtransposeintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/amxfp8intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/prfchwintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/keylockerintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/amxfp16intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx10_2mediaintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx10_2-512mediaintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx10_2convertintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx10_2-512convertintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx10_2bf16intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx10_2-512bf16intrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx10_2satcvtintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx10_2-512satcvtintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx10_2minmaxintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx10_2-512minmaxintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/avx10_2copyintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/movrsintrin.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include/amxmovrsintrin.h
+ /home/risalor/Desktop/Multimedija/V3/src/Eigen/src/Eigenvalues/MatrixBaseEigenvalues.h

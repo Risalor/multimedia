@@ -1,1 +1,1 @@
-/usr/bin/c++ -Wl,-rpath,/usr/lib -Wl,--dependency-file=CMakeFiles/N1.dir/link.d CMakeFiles/N1.dir/src/main.cpp.o -o N1  -lavformat -lavcodec -lswscale -lavutil
+/usr/bin/c++ -Wl,-rpath,/usr/lib -Wl,--dependency-file=CMakeFiles/N1.dir/link.d CMakeFiles/N1.dir/src/BitReader.cpp.o CMakeFiles/N1.dir/src/BitWriter.cpp.o CMakeFiles/N1.dir/src/main.cpp.o -o N1  -lavformat -lavcodec -lswscale -lavutil
