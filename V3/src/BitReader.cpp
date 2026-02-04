@@ -43,14 +43,13 @@ uint8_t BitReader::readNextByte() {
         return byte;
     }
     
-    char byte = 0;
+    uint8_t byte = 0;
     for(uint8_t i = 0; i < 8; i++) {
         bool bit = readNextBit();
-        byte |= (bit << i);
+        byte = (byte << 1) | (bit ? 1 : 0);
     }
     return byte;
 }
-
 uint32_t BitReader::readUint32() {
     uint32_t value = 0;
     for (int i = 0; i < 4; i++) {

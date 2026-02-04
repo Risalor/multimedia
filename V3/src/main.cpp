@@ -245,6 +245,12 @@ std::vector<uint8_t> decode(BitReader& reader) {
     return out;
 }
 
+struct VideoInfo {
+    double fps;
+    uint32_t w;
+    uint32_t h;
+};
+
 struct MotionVector {
     int16_t dx, dy, x, y;
     float mse;
@@ -288,7 +294,7 @@ FrameData padFrame(const FrameData& frame, int block_size = 16) {
     return dat;
 }
 
-std::vector<FrameData> extractVideoFrames(const std::string& filename, int maxFrames = -1) {
+std::vector<FrameData> extractVideoFrames(const std::string& filename, double& outFramerate, int maxFrames = -1) {
     std::vector<FrameData> frames;
     
     AVFormatContext* formatContext = nullptr;
@@ -360,6 +366,15 @@ std::vector<FrameData> extractVideoFrames(const std::string& filename, int maxFr
     int height = codecContext->height;
     
     std::cout << "Video info: " << width << "x" << height << " pixels" << std::endl;
+
+    AVStream* videoStream = formatContext->streams[videoStreamIndex];
+
+    AVRational avgFrameRate = videoStream->avg_frame_rate;
+    double fps = av_q2d(avgFrameRate);
+
+    std::cout << "Video framerate: " << fps << " fps" << std::endl;
+
+    outFramerate = fps;
     
     while (av_read_frame(formatContext, packet) >= 0) {
         if (packet->stream_index == videoStreamIndex) {
@@ -822,10 +837,11 @@ Eigen::MatrixXf decompressToBMP(const std::vector<int16_t>& flattened_DC, const 
     }
     
     if(flattened_AC.size() != total_blocks * 63) {
+        std::cout << "AC: " << flattened_AC.size() << "\n";
         throw std::runtime_error("ERROR: AC size mismatch!");
     }
     
-    Eigen::MatrixXf bmp(w, h);
+    Eigen::MatrixXf bmp(h, w);
     bmp.setZero();
     
     int zigzag[8][8] = {
@@ -892,6 +908,7 @@ Eigen::MatrixXf decompress(std::vector<uint8_t>& data, uint32_t w, uint32_t h) {
     uint32_t total_blocks = blocks_x * blocks_y;
 
     std::vector<int16_t> all = splitAndReconstructVectors(data);
+    std::cout << "All size: " << all.size() << "\n";
 
     std::vector<int16_t> DC_pred(total_blocks, 0);
     DC_pred = std::vector<int16_t>(all.begin(), all.begin() + total_blocks);
@@ -914,8 +931,8 @@ std::vector<FrameData> reorderFramesForCompression(const std::vector<FrameData>&
             
             for(size_t j = i + 1; j < frames.size(); j++) {
                 if(frames[j].type == P_FRAME && 
-                   frames[j].prev == i &&
-                   processed.find(j) == processed.end()) {
+                    frames[j].prev == i &&
+                    processed.find(j) == processed.end()) {
                     compressedOrder.push_back(frames[j]);
                     processed.insert(j);
                 }
@@ -923,11 +940,10 @@ std::vector<FrameData> reorderFramesForCompression(const std::vector<FrameData>&
             
             for(size_t j = i + 1; j < frames.size(); j++) {
                 if(frames[j].type == B_FRAME && 
-                   frames[j].prev == i &&
-                   frames[j].next < frames.size() &&
-                   processed.find(frames[j].next) != processed.end() &&
-                   processed.find(j) == processed.end()) {
-                    compressedOrder.push_back(frames[j]);
+                    frames[j].prev == i &&
+                    frames[j].next < frames.size() &&
+                    processed.find(frames[j].next) != processed.end() &&
+                    processed.find(j) == processed.end()) { compressedOrder.push_back(frames[j]);
                     processed.insert(j);
                 }
             }
@@ -937,7 +953,7 @@ std::vector<FrameData> reorderFramesForCompression(const std::vector<FrameData>&
     return compressedOrder;
 }
 
-std::vector<std::vector<MotionVector>> compressVideo(std::vector<FrameData>& frames, uint8_t N, uint8_t M) {
+std::vector<std::vector<MotionVector>> compressVideo(std::vector<FrameData>& frames, uint8_t N, uint8_t M, VideoInfo& videoInfo) {
     uint8_t PInterval = N/3;
 
     markFrameTypes(frames, N);
@@ -988,8 +1004,11 @@ std::vector<std::vector<MotionVector>> compressVideo(std::vector<FrameData>& fra
 
     BitWriter writer;
 
-    writer.writeUint32(frames[0].frame.cols());
-    writer.writeUint32(frames[0].frame.rows());
+    writer.writeUint32(videoInfo.w);
+    writer.writeUint32(videoInfo.h);
+    writer.writeUint32((uint32_t)videoInfo.fps);
+    writer.writeByte(N);
+    writer.writeByte(M);
 
     for(auto& fr : frames) {
         if(fr.type == I_FRAME) {
@@ -1035,32 +1054,139 @@ std::vector<std::vector<MotionVector>> compressVideo(std::vector<FrameData>& fra
     std::vector<uint8_t> fin = writer.getBuffer();
     writer = encode(fin);
 
-    std::cout << "FinalSize: " << (double)writer.getBuffer().size()/(double)1048576 << "\n";
-
+    //std::cout << "FinalSize: " << (double)writer.getBuffer().size()/(double)1048576 << "\n";
+    writer.flush();
+    writer.writeBufferToFile("test.bin");
 
     return std::vector<std::vector<MotionVector>>();
 }
 
-void decompressVideo(BitReader& reader) {
+#pragma pack(push, 1)
+struct BMPHeader {
+    uint16_t file_type{0x4D42};
+    uint32_t file_size{0};
+    uint16_t reserved1{0};
+    uint16_t reserved2{0};
+    uint32_t offset_data{0};
     
+    uint32_t dib_header_size{40};
+    int32_t width{0};
+    int32_t height{0};
+    uint16_t planes{1};
+    uint16_t bits_per_pixel{24};
+    uint32_t compression{0};
+    uint32_t image_size{0};
+    int32_t x_pixels_per_meter{0};
+    int32_t y_pixels_per_meter{0};
+    uint32_t colors_used{0}; 
+    uint32_t important_colors{0};
+};
+#pragma pack(pop)
+
+bool saveMatrixAsBMP(const Eigen::MatrixXf& matrix, const std::string& filename, bool normalize = true, float min_val = 0.0f, float max_val = 255.0f) {
+    
+    if (matrix.rows() == 0 || matrix.cols() == 0) {
+        std::cerr << "ERROR: Empty matrix!" << std::endl;
+        return false;
+    }
+    
+    std::ofstream file(filename, std::ios::binary);
+    if (!file.is_open()) {
+        std::cerr << "ERROR: Cannot open file: " << filename << std::endl;
+        return false;
+    }
+    
+    int width = matrix.cols();
+    int height = matrix.rows();
+    
+    float actual_min = min_val;
+    float actual_max = max_val;
+    
+    if (normalize) {
+        actual_min = matrix.minCoeff();
+        actual_max = matrix.maxCoeff();
+        
+        if (actual_max - actual_min < 1e-6f) {
+            actual_max = actual_min + 1.0f;
+        }
+    }
+    
+    int row_padding = (4 - (width * 3) % 4) % 4;
+    
+    BMPHeader header;
+    header.width = width;
+    header.height = height;
+    header.image_size = (width * 3 + row_padding) * height;
+    header.file_size = sizeof(BMPHeader) + header.image_size;
+    header.offset_data = sizeof(BMPHeader);
+    
+    file.write(reinterpret_cast<char*>(&header), sizeof(header));
+    
+    for (int i = height - 1; i >= 0; --i) {
+        for (int j = 0; j < width; ++j) {
+            float value = matrix(i, j);
+            
+            if (normalize) {
+                value = 255.0f * (value - actual_min) / (actual_max - actual_min);
+            } else {
+                if (value < 0.0f) value = 0.0f;
+                if (value > 255.0f) value = 255.0f;
+            }
+            
+            uint8_t pixel = static_cast<uint8_t>(value);
+            
+            file.put(pixel);
+            file.put(pixel);
+            file.put(pixel);
+        }
+        
+        for (int p = 0; p < row_padding; ++p) {
+            file.put(0);
+        }
+    }
+    
+    file.close();
+    std::cout << "Saved BMP image: " << filename << " (" << width << "x" << height << ")" << std::endl;
+    return true;
 }
 
-/*void testMotionEstimation() {
-    int width = 320;
-    int height = 240;
+void decompressVideo() {
+    BitReader reader("test.bin");
+    std::vector<uint8_t> temp = decode(reader);
+    reader = BitReader(temp);
+
+    VideoInfo videoInfo;
+    uint8_t N, M;
     
-    Eigen::MatrixXf frame1 = Eigen::MatrixXf::Random(height, width);
-    Eigen::MatrixXf frame2 = Eigen::MatrixXf::Zero(height, width);
-    
-    frame2.block(0, 10, height, width - 10) = frame1.block(0, 0, height, width - 10);
-    
-    std::vector<Eigen::MatrixXf> frames = {frame1, frame2};
-    
-    MotionVector mv = getMotionVector(frames, 0, 1, 100, 100, 16);
-    
-    std::cout << "Expected dx: -10, dy: 0  (content moved right → MV points left)\n";
-    std::cout << "Got dx: " << mv.dx << ", dy: " << mv.dy << ", MSE: " << mv.mse << std::endl;
-}*/
+    videoInfo.w = reader.readUint32();
+    videoInfo.h = reader.readUint32();
+    videoInfo.fps = reader.readUint32();
+    N = reader.readNextByte();
+    M = reader.readNextByte();
+
+    auto dims = getPaddedDimensions(videoInfo.w, videoInfo.h);
+
+    uint32_t blocks_x = (dims.first + 7) / 8;
+    uint32_t blocks_y = (dims.second + 7) / 8;
+    uint32_t full_frame_size_bytes = blocks_x * blocks_y * 64 * 2;
+
+    while(!reader.isEnd()) {
+        bool bit = reader.readNextBit();
+        if(bit) {
+
+        } else {
+            //First I_FRAME
+            std::vector<uint8_t> temp1(full_frame_size_bytes);
+            for(size_t i = 0; i < full_frame_size_bytes; i++) {
+                temp1[i] = reader.readNextByte();
+            }
+
+            auto tem = decompress(temp1, dims.first, dims.second);
+            saveMatrixAsBMP(tem ,"aaaa.bmp");
+            break;
+        }
+    }
+}
 
 int main(int argc, char* argv[]) {
 
@@ -1072,14 +1198,18 @@ int main(int argc, char* argv[]) {
 
     uint8_t M = 10, N = 9;
     
-    std::vector<FrameData> frames = extractVideoFrames(argv[1]);
+    VideoInfo videoInfo;
+    std::vector<FrameData> frames = extractVideoFrames(argv[1], videoInfo.fps);
+    videoInfo.h = frames[0].frame.rows();
+    videoInfo.w = frames[0].frame.cols();
 
     for(auto& frame : frames) {
         frame = padFrame(frame);
     }
     
     //std::cout << "MSE: " << MSE(frames, 0, 19, 100, 100, 106, 106) << "\n";
-    compressVideo(frames, N, 5);
+    compressVideo(frames, N, M, videoInfo);
+    decompressVideo();
 
     if (!frames.empty()) {
         std::cout << "\nFirst frame statistics:" << std::endl;
