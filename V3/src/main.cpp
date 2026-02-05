@@ -252,7 +252,7 @@ struct VideoInfo {
 };
 
 struct MotionVector {
-    int16_t dx, dy, x, y;
+    int32_t dx, dy, x, y;
     float mse;
     
     MotionVector(int32_t dx = 0, int32_t dy = 0, int32_t x = 0, int32_t y = 0, float mse = 0.0f) : dx(dx), dy(dy), x(x), y(y), mse(mse) {}
@@ -426,11 +426,16 @@ cleanup:
 double MSE(const std::vector<FrameData>& frames, size_t frame1_idx, size_t frame2_idx, int x1, int y1, int x2, int y2, int width, int height) {
     __m128 sum_vec = _mm_setzero_ps();
     float sum_scalar = 0.0f;
-    float total_count = width * height * 255.f;
+    
+    const Eigen::MatrixXf& mat1 = frames[frame1_idx].frame;
+    const Eigen::MatrixXf& mat2 = frames[frame2_idx].frame;
+    
+    int cols1 = mat1.cols();
+    int cols2 = mat2.cols();
     
     for (int dy = 0; dy < height; dy++) {
-        const float* row1 = &frames[frame1_idx].frame(y1 + dy, x1);
-        const float* row2 = &frames[frame2_idx].frame(y2 + dy, x2);
+        const float* row1 = mat1.data() + (y1 + dy) * cols1 + x1;
+        const float* row2 = mat2.data() + (y2 + dy) * cols2 + x2;
         
         int dx = 0;
         for (; dx + 4 <= width; dx += 4) {
@@ -452,7 +457,7 @@ double MSE(const std::vector<FrameData>& frames, size_t frame1_idx, size_t frame
     
     float total_sum = sum_scalar + sum_array[0] + sum_array[1] + sum_array[2] + sum_array[3];
     
-    return total_sum / total_count;
+    return total_sum / (width * height);
 }
 
 MotionVector getMotionVector(const std::vector<FrameData>& frames, uint32_t reference_frame_idx, uint32_t current_frame_idx, int32_t block_x, int32_t block_y, int search_range) {
@@ -620,9 +625,9 @@ void markFrameTypes(std::vector<FrameData>& frames, uint8_t N) {
             frames[i].type = I_FRAME;
         } else if(i > 0) {
             double mse = MSE(frames, i, i - 1, 0, 0, 0, 0, frames[0].frame.cols(), frames[0].frame.rows());
-            if(mse > 0.75) {
+            if(false) {
                 std::cout << "NEW I FRAME";
-                //frames[i].type = I_FRAME;
+                frames[i].type = I_FRAME;
             }
         }
     }
@@ -750,8 +755,8 @@ std::vector<uint8_t> compressAsBlocks(Eigen::MatrixXf& input_matrix, uint8_t M, 
     std::vector<int16_t> flattened_DC(size_DC, 0);
     std::vector<int16_t> flattened_AC(size_AC, 0);
     
-    std::cout << "Blocks: " << blocks_x << "x" << blocks_y << " = " << total_blocks << std::endl;
-    std::cout << "DC size: " << flattened_DC.size() << ", AC size: " << flattened_AC.size() << std::endl;
+    //std::cout << "Blocks: " << blocks_x << "x" << blocks_y << " = " << total_blocks << std::endl;
+    //std::cout << "DC size: " << flattened_DC.size() << ", AC size: " << flattened_AC.size() << std::endl;
     
     int zigzag[8][8] = {
         {0, 1, 5, 6,14,15,27,28},
@@ -908,7 +913,6 @@ Eigen::MatrixXf decompress(std::vector<uint8_t>& data, uint32_t w, uint32_t h) {
     uint32_t total_blocks = blocks_x * blocks_y;
 
     std::vector<int16_t> all = splitAndReconstructVectors(data);
-    std::cout << "All size: " << all.size() << "\n";
 
     std::vector<int16_t> DC_pred(total_blocks, 0);
     DC_pred = std::vector<int16_t>(all.begin(), all.begin() + total_blocks);
@@ -964,7 +968,7 @@ std::vector<std::vector<MotionVector>> compressVideo(std::vector<FrameData>& fra
             std::vector<MotionVector> vecs = getMotionVectors(frames, prev_i, i);
             frames[i].motionVectorsPrev = vecs;
         } else if(frames[i].type == I_FRAME) {
-            size_t prev_i = i;
+            prev_i = i;
         }
     }
 
@@ -1012,40 +1016,45 @@ std::vector<std::vector<MotionVector>> compressVideo(std::vector<FrameData>& fra
 
     for(auto& fr : frames) {
         if(fr.type == I_FRAME) {
+            std::cout << "I\n";
             writer.writeBit(0);
             std::vector<uint8_t> comp = compressAsBlocks(fr.frame, M, 0);
             for(auto& val : comp) {
                 writer.writeByte(val);
             }
         } else if(fr.type == P_FRAME) {
+            std::cout << "P\n";
             writer.writeBit(1);
             writer.writeBit(0);
             for(auto& mv : fr.motionVectorsPrev) {
                 if(mv.mse < 0.75) {
                     writer.writeBit(0);
-                    writer.writeUint32((uint32_t)mv.dx);
-                    writer.writeUint32((uint32_t)mv.dy);
+                    writer.writeInt32(mv.dx);
+                    writer.writeInt32(mv.dy);
+                    //std::cout << "MSE: " << mv.mse << "\n";
                 } else {
                     writer.writeBit(1);
                     Eigen::MatrixXf temp = fr.frame.block(mv.y, mv.x, 16, 16);
                     std::vector<uint8_t> comp = compressAsBlocks(temp, M, 0);
+                    //std::cout << "MSE: " << mv.mse << "\n";
                     for(auto& it : comp) {
                         writer.writeByte(it);
                     }
                 }
             }
         } else if(fr.type == B_FRAME) {
+            std::cout << "B\n";
             writer.writeBit(1);
             writer.writeBit(1);
             for(size_t i = 0; i < fr.motionVectorsNext.size(); i++) {
                 if(fr.motionVectorsNext[i].mse < fr.motionVectorsPrev[i].mse) {
                     writer.writeBit(0);
-                    writer.writeUint32((uint32_t)fr.motionVectorsNext[i].dx);
-                    writer.writeUint32((uint32_t)fr.motionVectorsNext[i].dy);
+                    writer.writeInt32(fr.motionVectorsNext[i].dx);
+                    writer.writeInt32(fr.motionVectorsNext[i].dy);
                 } else {
                     writer.writeBit(1);
-                    writer.writeUint32((uint32_t)fr.motionVectorsPrev[i].dx);
-                    writer.writeUint32((uint32_t)fr.motionVectorsPrev[i].dy);
+                    writer.writeInt32(fr.motionVectorsPrev[i].dx);
+                    writer.writeInt32(fr.motionVectorsPrev[i].dy);
                 }
             }
         }
@@ -1150,6 +1159,63 @@ bool saveMatrixAsBMP(const Eigen::MatrixXf& matrix, const std::string& filename,
     return true;
 }
 
+Eigen::MatrixXf regenPFrame(BitReader& reader, uint32_t blocks_x, uint32_t blocks_y, Eigen::MatrixXf& prevI) {
+    std::cout << "P\n";
+    uint32_t mb_x = blocks_x / 2;
+    uint32_t mb_y = blocks_y / 2;
+
+    Eigen::MatrixXf mat(mb_y * 16, mb_x * 16);
+
+    for (uint32_t i = 0; i < mb_y; i++) {
+        for (uint32_t j = 0; j < mb_x; j++) {
+            bool bit = reader.readNextBit();
+            if(bit) {
+                std::vector<uint8_t> block;
+                for(uint32_t l = 0; l < 16 * 16 * 2; l++) {
+                    block.push_back(reader.readNextByte());
+                }
+
+                auto t = decompress(block, 16, 16);
+                mat.block(i * 16, j * 16, 16, 16) = t;
+            } else {
+                int32_t x = reader.readInt32();
+                int32_t y = reader.readInt32();
+
+                mat.block(i * 16, j * 16, 16, 16) = prevI.block((i * 16) + y, (j * 16) + x, 16, 16);
+            }
+        }
+    }
+
+    return mat;
+}
+
+Eigen::MatrixXf regenBFrame(BitReader& reader, uint32_t blocks_x, uint32_t blocks_y, Eigen::MatrixXf& prev, Eigen::MatrixXf& next) {
+    std::cout << "B\n";
+    uint32_t mb_x = blocks_x / 2;
+    uint32_t mb_y = blocks_y / 2;
+
+    Eigen::MatrixXf mat(mb_y * 16, mb_x * 16);
+
+    for (uint32_t i = 0; i < mb_y; i++) {
+        for (uint32_t j = 0; j < mb_x; j++) {
+            bool bit = reader.readNextBit();
+            if(bit) {
+                int32_t x = reader.readInt32();
+                int32_t y = reader.readInt32();
+
+                mat.block(i * 16, j * 16, 16, 16) = prev.block((i * 16) + y, (j * 16) + x, 16, 16);
+            } else {
+                int32_t x = reader.readInt32();
+                int32_t y = reader.readInt32();
+
+                mat.block(i * 16, j * 16, 16, 16) = next.block((i * 16) + y, (j * 16) + x, 16, 16);
+            }
+        }
+    }
+
+    return mat;
+}
+
 void decompressVideo() {
     BitReader reader("test.bin");
     std::vector<uint8_t> temp = decode(reader);
@@ -1170,20 +1236,57 @@ void decompressVideo() {
     uint32_t blocks_y = (dims.second + 7) / 8;
     uint32_t full_frame_size_bytes = blocks_x * blocks_y * 64 * 2;
 
-    while(!reader.isEnd()) {
-        bool bit = reader.readNextBit();
-        if(bit) {
+    Eigen::MatrixXf next;
+    Eigen::MatrixXf prev;
 
+    bool bit = reader.readNextBit();
+    std::vector<uint8_t> temp1(full_frame_size_bytes);
+    for(size_t i = 0; i < full_frame_size_bytes; i++) {
+        temp1[i] = reader.readNextByte();
+    }
+    prev = decompress(temp1, dims.first, dims.second);
+    next = prev;
+
+    std::vector<FrameType> frameTypes;
+    std::vector<Eigen::MatrixXf> frames;
+
+    frames.push_back(prev);
+
+    uint32_t il = 0;
+
+    while(il < 100) {
+        il++;
+        bit = reader.readNextBit();
+        if(bit) {
+            bit = reader.readNextBit();
+            if(bit) {
+                //B_FRAME
+                frames.push_back(regenBFrame(reader, blocks_x, blocks_y, prev, next));
+                frameTypes.push_back(B_FRAME);
+                saveMatrixAsBMP(frames.back() ,"aaaaB.bmp");
+            } else {
+                //P_FRAME
+                prev = next;
+                next = regenPFrame(reader, blocks_x, blocks_y, prev);
+                frames.push_back(next);
+                frameTypes.push_back(P_FRAME);
+                //std::cout << "It's b time!\n";
+                //saveMatrixAsBMP(next ,"aaaa2.bmp");
+                //break;
+            }
         } else {
             //First I_FRAME
+            std::cout << "I\n";
             std::vector<uint8_t> temp1(full_frame_size_bytes);
             for(size_t i = 0; i < full_frame_size_bytes; i++) {
                 temp1[i] = reader.readNextByte();
             }
-
-            auto tem = decompress(temp1, dims.first, dims.second);
-            saveMatrixAsBMP(tem ,"aaaa.bmp");
-            break;
+            prev = next;
+            next = decompress(temp1, dims.first, dims.second);
+            frames.push_back(next);
+            frameTypes.push_back(I_FRAME);
+            //saveMatrixAsBMP(prev ,"aaaa.bmp");
+            //break;
         }
     }
 }
@@ -1207,17 +1310,8 @@ int main(int argc, char* argv[]) {
         frame = padFrame(frame);
     }
     
-    //std::cout << "MSE: " << MSE(frames, 0, 19, 100, 100, 106, 106) << "\n";
     compressVideo(frames, N, M, videoInfo);
-    decompressVideo();
-
-    if (!frames.empty()) {
-        std::cout << "\nFirst frame statistics:" << std::endl;
-        std::cout << "  Size: " << frames[0].frame.rows() << "x" << frames[0].frame.cols() << std::endl;
-        std::cout << "  Mean: " << frames[0].frame.mean() << std::endl;
-        std::cout << "  Min: " << frames[0].frame.minCoeff() << std::endl;
-        std::cout << "  Max: " << frames[0].frame.maxCoeff() << std::endl;
-    }
+    //decompressVideo();
     
     return 0;
 }

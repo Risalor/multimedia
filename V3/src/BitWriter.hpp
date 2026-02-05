@@ -17,6 +17,7 @@ public:
     void writeBufferToFile(const std::string& path);
     void flush();
     std::vector<uint8_t> getBuffer();
+    void writeInt32(int32_t value);
     void writeUint32(uint32_t value);
     void writeUint64(uint64_t value);
     void setBuffer(std::vector<uint8_t>& buffer);

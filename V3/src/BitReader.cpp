@@ -50,6 +50,12 @@ uint8_t BitReader::readNextByte() {
     }
     return byte;
 }
+
+int32_t BitReader::readInt32() {
+    uint32_t unsignedValue = readUint32();
+    return static_cast<int32_t>(unsignedValue);
+}
+
 uint32_t BitReader::readUint32() {
     uint32_t value = 0;
     for (int i = 0; i < 4; i++) {

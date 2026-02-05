@@ -52,6 +52,15 @@ std::vector<uint8_t> BitWriter::getBuffer() {
     return m_buffer;
 }
 
+void BitWriter::writeInt32(int32_t value) {
+    uint32_t unsignedValue = static_cast<uint32_t>(value);
+    
+    writeByte(static_cast<uint8_t>((unsignedValue >> 24) & 0xFF));
+    writeByte(static_cast<uint8_t>((unsignedValue >> 16) & 0xFF));
+    writeByte(static_cast<uint8_t>((unsignedValue >> 8) & 0xFF));
+    writeByte(static_cast<uint8_t>(unsignedValue & 0xFF));
+}
+
 void BitWriter::writeUint32(uint32_t value) {
     writeByte(static_cast<uint8_t>((value >> 24) & 0xFF));
     writeByte(static_cast<uint8_t>((value >> 16) & 0xFF));
