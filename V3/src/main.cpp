@@ -624,8 +624,8 @@ void markFrameTypes(std::vector<FrameData>& frames, uint8_t N) {
         if(i % N == 0) {
             frames[i].type = I_FRAME;
         } else if(i > 0) {
-            double mse = MSE(frames, i, i - 1, 0, 0, 0, 0, frames[0].frame.cols(), frames[0].frame.rows());
-            if(false) {
+            double mse = MSE(frames, i, i - 1, 0, 0, 0, 0, frames[0].frame.cols(), frames[0].frame.rows())/255.f;
+            if(mse > 0.75) {
                 std::cout << "NEW I FRAME";
                 frames[i].type = I_FRAME;
             }
@@ -925,149 +925,56 @@ Eigen::MatrixXf decompress(std::vector<uint8_t>& data, uint32_t w, uint32_t h) {
 }
 
 std::vector<FrameData> reorderFramesForCompression(const std::vector<FrameData>& frames) {
-    std::vector<FrameData> compressedOrder;
-    std::unordered_set<size_t> processed;
-    
-    for(size_t i = 0; i < frames.size(); i++) {
-        if(frames[i].type == I_FRAME && processed.find(i) == processed.end()) {
-            compressedOrder.push_back(frames[i]);
-            processed.insert(i);
-            
-            for(size_t j = i + 1; j < frames.size(); j++) {
-                if(frames[j].type == P_FRAME && 
-                    frames[j].prev == i &&
-                    processed.find(j) == processed.end()) {
-                    compressedOrder.push_back(frames[j]);
-                    processed.insert(j);
-                }
-            }
-            
-            for(size_t j = i + 1; j < frames.size(); j++) {
-                if(frames[j].type == B_FRAME && 
-                    frames[j].prev == i &&
-                    frames[j].next < frames.size() &&
-                    processed.find(frames[j].next) != processed.end() &&
-                    processed.find(j) == processed.end()) { compressedOrder.push_back(frames[j]);
-                    processed.insert(j);
-                }
-            }
-        }
-    }
-    
-    return compressedOrder;
-}
+    if (frames.empty()) return {};
 
-std::vector<std::vector<MotionVector>> compressVideo(std::vector<FrameData>& frames, uint8_t N, uint8_t M, VideoInfo& videoInfo) {
-    uint8_t PInterval = N/3;
+    std::vector<FrameData> reordered;
+    std::vector<size_t> anchors;
 
-    markFrameTypes(frames, N);
-
-    size_t prev_i = 0;
-    for(size_t i = 0; i < frames.size(); i++) {
-        if(frames[i].type == P_FRAME) {
-            std::vector<MotionVector> vecs = getMotionVectors(frames, prev_i, i);
-            frames[i].motionVectorsPrev = vecs;
-        } else if(frames[i].type == I_FRAME) {
-            prev_i = i;
+    // Collect indices of all I and P frames (anchors/references)
+    for (size_t i = 0; i < frames.size(); ++i) {
+        if (frames[i].type == I_FRAME || frames[i].type == P_FRAME) {
+            anchors.push_back(i);
         }
     }
 
-    size_t prev = 0, next = 0;
-
-    for(size_t i = 0; i < frames.size(); i++) {
-        if(frames[i].type == B_FRAME) {
-            for(size_t j = i + 1; j < N && j + i < frames.size(); j++) {
-                if(frames[i+j].type == I_FRAME || frames[i+j].type == P_FRAME) {
-                    next = j + i;
-                    break;
-                }
-            }
-
-            frames[i].motionVectorsPrev = getMotionVectors(frames, prev, i);
-            frames[i].prev = prev;
-            frames[i].motionVectorsNext = getMotionVectors(frames, next, i);
-            frames[i].next = next;
-
-        } else if(frames[i].type == I_FRAME || frames[i].type == P_FRAME) {
-            prev = i;
-        }
+    if (anchors.empty()) {
+        return frames;  // All B-frames → rare case
     }
 
-    std::cout << frames[1].motionVectorsPrev.size() << "\n";
+    // 1. Push the very first anchor (usually the opening I-frame)
+    reordered.push_back(frames[anchors[0]]);
 
-    /*for(auto& fr : frames) {
-        if(fr.type = P_FRAME) {
-            for(auto f : fr.motionVectorsPrev) {
-                if(f.mse < 0.3) continue;
-                std::cout << f.mse << "\n";
-            }
-        }
-    }*/
+    // 2. For every subsequent anchor: push the anchor + all B-frames that depend on (prev_anchor, this_anchor)
+    for (size_t k = 1; k < anchors.size(); ++k) {
+        size_t curr_anchor = anchors[k];
+        size_t prev_anchor = anchors[k - 1];
 
-    frames = reorderFramesForCompression(frames);
+        // Push current I/P anchor first → decoder can use it as reference
+        reordered.push_back(frames[curr_anchor]);
 
-    BitWriter writer;
-
-    writer.writeUint32(videoInfo.w);
-    writer.writeUint32(videoInfo.h);
-    writer.writeUint32((uint32_t)videoInfo.fps);
-    writer.writeByte(N);
-    writer.writeByte(M);
-
-    for(auto& fr : frames) {
-        if(fr.type == I_FRAME) {
-            std::cout << "I\n";
-            writer.writeBit(0);
-            std::vector<uint8_t> comp = compressAsBlocks(fr.frame, M, 0);
-            for(auto& val : comp) {
-                writer.writeByte(val);
-            }
-        } else if(fr.type == P_FRAME) {
-            std::cout << "P\n";
-            writer.writeBit(1);
-            writer.writeBit(0);
-            for(auto& mv : fr.motionVectorsPrev) {
-                if(mv.mse < 0.75) {
-                    writer.writeBit(0);
-                    writer.writeInt32(mv.dx);
-                    writer.writeInt32(mv.dy);
-                    //std::cout << "MSE: " << mv.mse << "\n";
-                } else {
-                    writer.writeBit(1);
-                    Eigen::MatrixXf temp = fr.frame.block(mv.y, mv.x, 16, 16);
-                    std::vector<uint8_t> comp = compressAsBlocks(temp, M, 0);
-                    //std::cout << "MSE: " << mv.mse << "\n";
-                    for(auto& it : comp) {
-                        writer.writeByte(it);
-                    }
-                }
-            }
-        } else if(fr.type == B_FRAME) {
-            std::cout << "B\n";
-            writer.writeBit(1);
-            writer.writeBit(1);
-            for(size_t i = 0; i < fr.motionVectorsNext.size(); i++) {
-                if(fr.motionVectorsNext[i].mse < fr.motionVectorsPrev[i].mse) {
-                    writer.writeBit(0);
-                    writer.writeInt32(fr.motionVectorsNext[i].dx);
-                    writer.writeInt32(fr.motionVectorsNext[i].dy);
-                } else {
-                    writer.writeBit(1);
-                    writer.writeInt32(fr.motionVectorsPrev[i].dx);
-                    writer.writeInt32(fr.motionVectorsPrev[i].dy);
-                }
+        // Then push the B-frames that were originally between prev and curr anchor
+        for (size_t j = prev_anchor + 1; j < curr_anchor; ++j) {
+            if (frames[j].type == B_FRAME) {
+                reordered.push_back(frames[j]);
             }
         }
     }
 
-    std::vector<uint8_t> fin = writer.getBuffer();
-    writer = encode(fin);
+    // 3. Handle any trailing B-frames after the last anchor (rare, but safe)
+    size_t last_anchor = anchors.back();
+    for (size_t j = last_anchor + 1; j < frames.size(); ++j) {
+        if (frames[j].type == B_FRAME) {
+            reordered.push_back(frames[j]);
+        }
+    }
 
-    //std::cout << "FinalSize: " << (double)writer.getBuffer().size()/(double)1048576 << "\n";
-    writer.flush();
-    writer.writeBufferToFile("test.bin");
+    // Optional: validation
+    if (reordered.size() != frames.size()) {
+        std::cerr << "WARNING: Reordering lost/gained frames! Original: " 
+                  << frames.size() << ", Reordered: " << reordered.size() << "\n";
+    }
 
-    return std::vector<std::vector<MotionVector>>();
+    return reordered;
 }
 
 #pragma pack(push, 1)
@@ -1159,8 +1066,112 @@ bool saveMatrixAsBMP(const Eigen::MatrixXf& matrix, const std::string& filename,
     return true;
 }
 
+std::vector<std::vector<MotionVector>> compressVideo(std::vector<FrameData>& frames, uint8_t N, uint8_t M, VideoInfo& videoInfo) {
+    uint8_t PInterval = N/3;
+
+    markFrameTypes(frames, N);
+
+    size_t prev_i = 0;
+    for(size_t i = 0; i < frames.size(); i++) {
+        if(frames[i].type == P_FRAME) {
+            std::vector<MotionVector> vecs = getMotionVectors(frames, prev_i, i);
+            frames[i].motionVectorsPrev = vecs;
+        } else if(frames[i].type == I_FRAME) {
+            prev_i = i;
+        }
+    }
+
+    size_t prev = 0, next = 0;
+
+    for(size_t i = 0; i < frames.size(); i++) {
+        if(frames[i].type == B_FRAME) {
+            for(size_t j = i + 1; j < N && j + i < frames.size(); j++) {
+                if(frames[i+j].type == I_FRAME || frames[i+j].type == P_FRAME) {
+                    next = j + i;
+                    break;
+                }
+            }
+
+            frames[i].motionVectorsPrev = getMotionVectors(frames, prev, i);
+            frames[i].prev = prev;
+            frames[i].motionVectorsNext = getMotionVectors(frames, next, i);
+            frames[i].next = next;
+
+        } else if(frames[i].type == I_FRAME || frames[i].type == P_FRAME) {
+            prev = i;
+        }
+    }
+
+    std::cout << "Before: " << frames.size() << "\n";
+    frames = reorderFramesForCompression(frames);
+    std::cout << "After: " << frames.size() << "\n";
+
+    BitWriter writer;
+
+    writer.writeUint32(videoInfo.w);
+    writer.writeUint32(videoInfo.h);
+    writer.writeUint32((uint32_t)videoInfo.fps);
+    writer.writeByte(N);
+    writer.writeByte(M);
+
+    for(auto& fr : frames) {
+        if(fr.type == I_FRAME) {
+            //std::cout << "I\n";
+            writer.writeBit(0);
+            std::vector<uint8_t> comp = compressAsBlocks(fr.frame, M, 0);
+            for(auto& val : comp) {
+                writer.writeByte(val);
+            }
+        } else if(fr.type == P_FRAME) {
+            //std::cout << "P\n";
+            writer.writeBit(1);
+            writer.writeBit(0);
+            for(auto& mv : fr.motionVectorsPrev) {
+                if(mv.mse < 0.75) {
+                    writer.writeBit(0);
+                    writer.writeInt32(mv.dx);
+                    writer.writeInt32(mv.dy);
+                    //std::cout << "MSE: " << mv.mse << "\n";
+                } else {
+                    writer.writeBit(1);
+                    Eigen::MatrixXf temp = fr.frame.block(mv.y, mv.x, 16, 16);
+                    std::vector<uint8_t> comp = compressAsBlocks(temp, M, 0);
+                    //std::cout << "MSE: " << mv.mse << "\n";
+                    for(auto& it : comp) {
+                        writer.writeByte(it);
+                    }
+                }
+            }
+        } else if(fr.type == B_FRAME) {
+            //std::cout << "B\n";
+            writer.writeBit(1);
+            writer.writeBit(1);
+            for(size_t i = 0; i < fr.motionVectorsNext.size(); i++) {
+                if(fr.motionVectorsNext[i].mse < fr.motionVectorsPrev[i].mse) {
+                    writer.writeBit(0);
+                    writer.writeInt32(fr.motionVectorsNext[i].dx);
+                    writer.writeInt32(fr.motionVectorsNext[i].dy);
+                } else {
+                    writer.writeBit(1);
+                    writer.writeInt32(fr.motionVectorsPrev[i].dx);
+                    writer.writeInt32(fr.motionVectorsPrev[i].dy);
+                }
+            }
+        }
+    }
+
+    std::vector<uint8_t> fin = writer.getBuffer();
+    writer = encode(fin);
+
+    //std::cout << "FinalSize: " << (double)writer.getBuffer().size()/(double)1048576 << "\n";
+    writer.flush();
+    writer.writeBufferToFile("test.bin");
+
+    return std::vector<std::vector<MotionVector>>();
+}
+
 Eigen::MatrixXf regenPFrame(BitReader& reader, uint32_t blocks_x, uint32_t blocks_y, Eigen::MatrixXf& prevI) {
-    std::cout << "P\n";
+    //std::cout << "P\n";
     uint32_t mb_x = blocks_x / 2;
     uint32_t mb_y = blocks_y / 2;
 
@@ -1190,7 +1201,7 @@ Eigen::MatrixXf regenPFrame(BitReader& reader, uint32_t blocks_x, uint32_t block
 }
 
 Eigen::MatrixXf regenBFrame(BitReader& reader, uint32_t blocks_x, uint32_t blocks_y, Eigen::MatrixXf& prev, Eigen::MatrixXf& next) {
-    std::cout << "B\n";
+    //std::cout << "B\n";
     uint32_t mb_x = blocks_x / 2;
     uint32_t mb_y = blocks_y / 2;
 
@@ -1252,10 +1263,10 @@ void decompressVideo() {
 
     frames.push_back(prev);
 
-    uint32_t il = 0;
+    uint32_t s = 0;
 
-    while(il < 100) {
-        il++;
+    while(!reader.isEnd()) {
+        s++;
         bit = reader.readNextBit();
         if(bit) {
             bit = reader.readNextBit();
@@ -1263,20 +1274,21 @@ void decompressVideo() {
                 //B_FRAME
                 frames.push_back(regenBFrame(reader, blocks_x, blocks_y, prev, next));
                 frameTypes.push_back(B_FRAME);
-                saveMatrixAsBMP(frames.back() ,"aaaaB.bmp");
+                std::string fr = "frame" + std::to_string(s) + "B" + ".bmp";
+                saveMatrixAsBMP(frames.back(), fr);
             } else {
                 //P_FRAME
                 prev = next;
                 next = regenPFrame(reader, blocks_x, blocks_y, prev);
                 frames.push_back(next);
                 frameTypes.push_back(P_FRAME);
-                //std::cout << "It's b time!\n";
-                //saveMatrixAsBMP(next ,"aaaa2.bmp");
+                std::string fr = "frame" + std::to_string(s) + "P" + ".bmp";
+                saveMatrixAsBMP(frames.back(), fr);
                 //break;
             }
         } else {
             //First I_FRAME
-            std::cout << "I\n";
+            //std::cout << "I\n";
             std::vector<uint8_t> temp1(full_frame_size_bytes);
             for(size_t i = 0; i < full_frame_size_bytes; i++) {
                 temp1[i] = reader.readNextByte();
@@ -1285,7 +1297,8 @@ void decompressVideo() {
             next = decompress(temp1, dims.first, dims.second);
             frames.push_back(next);
             frameTypes.push_back(I_FRAME);
-            //saveMatrixAsBMP(prev ,"aaaa.bmp");
+            std::string fr = "frame" + std::to_string(s) + "I" + ".bmp";
+            saveMatrixAsBMP(frames.back(), fr);
             //break;
         }
     }
@@ -1299,7 +1312,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    uint8_t M = 10, N = 9;
+    uint8_t M = 254, N = 50;
     
     VideoInfo videoInfo;
     std::vector<FrameData> frames = extractVideoFrames(argv[1], videoInfo.fps);
@@ -1311,7 +1324,7 @@ int main(int argc, char* argv[]) {
     }
     
     compressVideo(frames, N, M, videoInfo);
-    //decompressVideo();
+    decompressVideo();
     
     return 0;
 }
