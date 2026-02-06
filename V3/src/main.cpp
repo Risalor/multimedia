@@ -5,6 +5,7 @@
 #include <cstring>
 #include "BitWriter.hpp"
 #include "BitReader.hpp"
+#include <chrono>
 
 extern "C" {
     #include <libavcodec/avcodec.h>
@@ -536,7 +537,7 @@ void saveFramesToRawMKV(const std::vector<Eigen::MatrixXf>& frames, float fps, c
     avformat_free_context(fmt_ctx);
 }
 
-
+//SIMD za hitrejše računanje
 double MSE(const std::vector<FrameData>& frames, size_t frame1_idx, size_t frame2_idx, int x1, int y1, int x2, int y2, int width, int height) {
     __m128 sum_vec = _mm_setzero_ps();
     float sum_scalar = 0.0f;
@@ -1041,7 +1042,16 @@ std::vector<FrameData> reorderFramesForCompression(const std::vector<FrameData>&
     return reordered;
 }
 
-void compressVideo(std::vector<FrameData>& frames, uint8_t N, uint8_t M, VideoInfo& videoInfo) {
+void compressVideo(const std::string& path, const std::string& outputFile, uint8_t N, uint8_t M) {
+    VideoInfo videoInfo;
+    std::vector<FrameData> frames = extractVideoFrames(path, videoInfo.fps);
+    videoInfo.h = frames[0].frame.rows();
+    videoInfo.w = frames[0].frame.cols();
+
+    for(auto& frame : frames) {
+        frame = padFrame(frame);
+    }
+
     uint8_t PInterval = N/3;
     markFrameTypes(frames, N);
     size_t prev_i = 0;
@@ -1123,7 +1133,7 @@ void compressVideo(std::vector<FrameData>& frames, uint8_t N, uint8_t M, VideoIn
     writer = encode(fin);
     //std::cout << "FinalSize: " << (double)writer.getBuffer().size()/(double)1048576 << "\n";
     writer.flush();
-    writer.writeBufferToFile("test.bin");
+    writer.writeBufferToFile(outputFile);
 }
 
 Eigen::MatrixXf regenPFrame(BitReader& reader, uint32_t blocks_x, uint32_t blocks_y, Eigen::MatrixXf& prevI) {
@@ -1240,8 +1250,8 @@ std::vector<Eigen::MatrixXf> removePadding(const std::vector<Eigen::MatrixXf>& f
     return cropped;
 }
 
-void decompressVideo() {
-    BitReader reader("test.bin");
+void decompressVideo(const std::string& inputPath, const std::string& outputPath) {
+    BitReader reader(inputPath);
     std::vector<uint8_t> temp = decode(reader);
     reader = BitReader(temp);
 
@@ -1311,29 +1321,87 @@ void decompressVideo() {
     uint32_t j = 0;
     std::vector<Eigen::MatrixXf> tpst = restoreDisplayOrder(frames, frameTypes);
     tpst = removePadding(tpst, videoInfo.w, videoInfo.h);
-    saveFramesToRawMKV(tpst, videoInfo.fps, "all.mkv");
+    saveFramesToRawMKV(tpst, videoInfo.fps, outputPath + ".mkv");
+}
+
+void printUsage(const std::string& programName) {
+    std::cout << "Video Compression/Decompression Tool\n";
+    std::cout << "Usage: " << programName << " <mode> <input_file> <output_file> [N] [M]\n";
+}
+
+bool isCompressMode(const std::string& mode) {
+    return mode == "c" || mode == "compress" || mode == "C" || mode == "COMPRESS";
+}
+
+bool isDecompressMode(const std::string& mode) {
+    return mode == "d" || mode == "decompress" || mode == "D" || mode == "DECOMPRESS";
 }
 
 int main(int argc, char* argv[]) {
-
-    if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <input.mkv>" << std::endl;
+    if (argc < 4) {
+        printUsage(argv[0]);
         return 1;
     }
 
-    uint8_t M = 50, N = 10;
-    
-    VideoInfo videoInfo;
-    std::vector<FrameData> frames = extractVideoFrames(argv[1], videoInfo.fps);
-    videoInfo.h = frames[0].frame.rows();
-    videoInfo.w = frames[0].frame.cols();
+    std::string mode = argv[1];
+    std::string inputFile = argv[2];
+    std::string outputFile = argv[3];
 
-    for(auto& frame : frames) {
-        frame = padFrame(frame);
+    uint8_t N = 10;
+    uint8_t M = 100;
+
+    if (isCompressMode(mode)) {
+        if (argc >= 5) {
+            try {
+                N = static_cast<uint8_t>(std::stoi(argv[4]));
+            } catch (const std::exception& e) {
+                std::cerr << "Error: Invalid N value. Using default N=" << static_cast<int>(N) << std::endl;
+            }
+        }
+        
+        if (argc >= 6) {
+            try {
+                M = static_cast<uint8_t>(std::stoi(argv[5]));
+            } catch (const std::exception& e) {
+                std::cerr << "Error: Invalid M value. Using default M=" << static_cast<int>(M) << std::endl;
+            }
+        }
+        
+        if (argc > 6) {
+            std::cerr << "Warning: Extra arguments ignored.\n";
+        }
+        
+        std::cout << "Compressing video...\n";
+        std::cout << "Input: " << inputFile << "\n";
+        std::cout << "Output: " << outputFile << "\n";
+        std::cout << "Parameters: N=" << static_cast<int>(N) << ", M=" << static_cast<int>(M) << std::endl;
+        
+        try {
+            compressVideo(inputFile, outputFile, N, M);
+            std::cout << "Compression completed successfully!\n";
+        } catch (const std::exception& e) {
+            std::cerr << "Compression failed: " << e.what() << std::endl;
+            return 1;
+        }
+        
+    } else if (isDecompressMode(mode)) {
+        std::cout << "Decompressing video...\n";
+        std::cout << "Input: " << inputFile << "\n";
+        std::cout << "Output: " << outputFile << std::endl;
+        
+        try {
+            decompressVideo(inputFile, outputFile);
+            std::cout << "Decompression completed successfully!\n";
+        } catch (const std::exception& e) {
+            std::cerr << "Decompression failed: " << e.what() << std::endl;
+            return 1;
+        }
+        
+    } else {
+        std::cerr << "Error: Invalid mode '" << mode << "'\n";
+        printUsage(argv[0]);
+        return 1;
     }
-    
-    compressVideo(frames, N, M, videoInfo);
-    //decompressVideo();
-    
+
     return 0;
 }
