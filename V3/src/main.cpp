@@ -299,12 +299,10 @@ std::vector<FrameData> extractVideoFrames(const std::string& filename, double& o
     
     AVFormatContext* formatContext = nullptr;
     if (avformat_open_input(&formatContext, filename.c_str(), nullptr, nullptr) != 0) {
-        std::cerr << "Error: Could not open video file: " << filename << std::endl;
         return frames;
     }
     
     if (avformat_find_stream_info(formatContext, nullptr) < 0) {
-        std::cerr << "Error: Could not find stream information" << std::endl;
         avformat_close_input(&formatContext);
         return frames;
     }
@@ -318,7 +316,6 @@ std::vector<FrameData> extractVideoFrames(const std::string& filename, double& o
     }
     
     if (videoStreamIndex == -1) {
-        std::cerr << "Error: Could not find video stream" << std::endl;
         avformat_close_input(&formatContext);
         return frames;
     }
@@ -326,7 +323,6 @@ std::vector<FrameData> extractVideoFrames(const std::string& filename, double& o
     AVCodecParameters* codecParameters = formatContext->streams[videoStreamIndex]->codecpar;
     const AVCodec* codec = avcodec_find_decoder(codecParameters->codec_id);
     if (!codec) {
-        std::cerr << "Error: Unsupported codec" << std::endl;
         avformat_close_input(&formatContext);
         return frames;
     }
@@ -335,7 +331,6 @@ std::vector<FrameData> extractVideoFrames(const std::string& filename, double& o
     avcodec_parameters_to_context(codecContext, codecParameters);
     
     if (avcodec_open2(codecContext, codec, nullptr) < 0) {
-        std::cerr << "Error: Could not open codec" << std::endl;
         avcodec_free_context(&codecContext);
         avformat_close_input(&formatContext);
         return frames;
@@ -347,7 +342,6 @@ std::vector<FrameData> extractVideoFrames(const std::string& filename, double& o
         SWS_BILINEAR, nullptr, nullptr, nullptr);
     
     if (!swsContext) {
-        std::cerr << "Error: Could not create scaling context" << std::endl;
         avcodec_free_context(&codecContext);
         avformat_close_input(&formatContext);
         return frames;
@@ -364,15 +358,11 @@ std::vector<FrameData> extractVideoFrames(const std::string& filename, double& o
     int frameCount = 0;
     int width = codecContext->width;
     int height = codecContext->height;
-    
-    std::cout << "Video info: " << width << "x" << height << " pixels" << std::endl;
 
     AVStream* videoStream = formatContext->streams[videoStreamIndex];
 
     AVRational avgFrameRate = videoStream->avg_frame_rate;
     double fps = av_q2d(avgFrameRate);
-
-    std::cout << "Video framerate: " << fps << " fps" << std::endl;
 
     outFramerate = fps;
     
@@ -419,9 +409,133 @@ cleanup:
     avcodec_free_context(&codecContext);
     avformat_close_input(&formatContext);
     
-    std::cout << "Extracted " << frames.size() << " frames" << std::endl;
     return frames;
 }
+
+void saveFramesToRawMKV(const std::vector<Eigen::MatrixXf>& frames, float fps, const std::string& filename) {
+    if (frames.empty())
+        throw std::runtime_error("No frames.");
+
+    int height = frames[0].rows();
+    int width  = frames[0].cols();
+
+    for (const auto& f : frames)
+        if (f.rows() != height || f.cols() != width)
+            throw std::runtime_error("Frame size mismatch.");
+
+    AVFormatContext* fmt_ctx = nullptr;
+
+    if (avformat_alloc_output_context2(&fmt_ctx, nullptr, "matroska", filename.c_str()) < 0)
+        throw std::runtime_error("Could not allocate format context.");
+
+    const AVCodec* codec = avcodec_find_encoder(AV_CODEC_ID_RAWVIDEO);
+    if (!codec)
+        throw std::runtime_error("Rawvideo encoder not found.");
+
+    AVStream* stream = avformat_new_stream(fmt_ctx, nullptr);
+    if (!stream)
+        throw std::runtime_error("Could not create stream.");
+
+    AVCodecContext* codec_ctx = avcodec_alloc_context3(codec);
+
+    codec_ctx->codec_id   = AV_CODEC_ID_RAWVIDEO;
+    codec_ctx->codec_type = AVMEDIA_TYPE_VIDEO;
+    codec_ctx->pix_fmt    = AV_PIX_FMT_GRAY8;
+    codec_ctx->width      = width;
+    codec_ctx->height     = height;
+    codec_ctx->time_base  = AVRational{1, (int)fps};
+    codec_ctx->framerate  = AVRational{(int)fps, 1};
+
+    if (fmt_ctx->oformat->flags & AVFMT_GLOBALHEADER)
+        codec_ctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+
+    if (avcodec_open2(codec_ctx, codec, nullptr) < 0)
+        throw std::runtime_error("Could not open codec.");
+
+    if (avcodec_parameters_from_context(stream->codecpar, codec_ctx) < 0)
+        throw std::runtime_error("Failed copying codec params.");
+
+    stream->time_base = codec_ctx->time_base;
+
+    AVDictionary* mux_opts = nullptr;
+    av_dict_set(&mux_opts, "allow_raw_vfw", "1", 0);
+
+    if (!(fmt_ctx->oformat->flags & AVFMT_NOFILE))
+        if (avio_open(&fmt_ctx->pb, filename.c_str(), AVIO_FLAG_WRITE) < 0)
+            throw std::runtime_error("Could not open output file.");
+
+    if (avformat_write_header(fmt_ctx, &mux_opts) < 0)
+        throw std::runtime_error("Could not write header.");
+
+    av_dict_free(&mux_opts);
+
+    AVFrame* frame = av_frame_alloc();
+    frame->format = codec_ctx->pix_fmt;
+    frame->width  = width;
+    frame->height = height;
+
+    if (av_frame_get_buffer(frame, 0) < 0)
+        throw std::runtime_error("Frame allocation failed.");
+
+    for (size_t i = 0; i < frames.size(); ++i)
+    {
+        const auto& mat = frames[i];
+
+        av_frame_make_writable(frame);
+
+        for (int y = 0; y < height; ++y)
+        {
+            uint8_t* dst = frame->data[0] + y * frame->linesize[0];
+
+            for (int x = 0; x < width; ++x)
+            {
+                float v = mat(y, x);
+                v = std::clamp(v, 0.0f, 255.0f);
+                dst[x] = static_cast<uint8_t>(v);
+            }
+        }
+
+        frame->pts = i;
+
+        if (avcodec_send_frame(codec_ctx, frame) < 0)
+            throw std::runtime_error("Send frame failed.");
+
+        AVPacket pkt;
+        av_init_packet(&pkt);
+
+        while (avcodec_receive_packet(codec_ctx, &pkt) == 0)
+        {
+            av_packet_rescale_ts(&pkt, codec_ctx->time_base, stream->time_base);
+            pkt.stream_index = stream->index;
+
+            if (av_interleaved_write_frame(fmt_ctx, &pkt) < 0)
+                throw std::runtime_error("Write frame failed.");
+
+            av_packet_unref(&pkt);
+        }
+    }
+
+    avcodec_send_frame(codec_ctx, nullptr);
+    AVPacket pkt;
+    while (avcodec_receive_packet(codec_ctx, &pkt) == 0)
+    {
+        av_packet_rescale_ts(&pkt, codec_ctx->time_base, stream->time_base);
+        pkt.stream_index = stream->index;
+        av_interleaved_write_frame(fmt_ctx, &pkt);
+        av_packet_unref(&pkt);
+    }
+
+    av_write_trailer(fmt_ctx);
+
+    av_frame_free(&frame);
+    avcodec_free_context(&codec_ctx);
+
+    if (!(fmt_ctx->oformat->flags & AVFMT_NOFILE))
+        avio_closep(&fmt_ctx->pb);
+
+    avformat_free_context(fmt_ctx);
+}
+
 
 double MSE(const std::vector<FrameData>& frames, size_t frame1_idx, size_t frame2_idx, int x1, int y1, int x2, int y2, int width, int height) {
     __m128 sum_vec = _mm_setzero_ps();
@@ -460,7 +574,8 @@ double MSE(const std::vector<FrameData>& frames, size_t frame1_idx, size_t frame
     return total_sum / (width * height);
 }
 
-MotionVector getMotionVector(const std::vector<FrameData>& frames, uint32_t reference_frame_idx, uint32_t current_frame_idx, int32_t block_x, int32_t block_y, int search_range) {
+//Diamond search, ker je dosti hitreješe
+MotionVector getMotionVector(const std::vector<FrameData>& frames, uint32_t reference_frame_idx, uint32_t current_frame_idx, int32_t block_x, int32_t block_y) {
     const Eigen::MatrixXf& ref_frame  = frames[reference_frame_idx].frame;
     const Eigen::MatrixXf& curr_frame = frames[current_frame_idx].frame;
 
@@ -484,26 +599,28 @@ MotionVector getMotionVector(const std::vector<FrameData>& frames, uint32_t refe
 
     int best_x = block_x;
     int best_y = block_y;
-    float best_mse = std::numeric_limits<float>::max();
+    float best_mse = MSE(frames, current_frame_idx, reference_frame_idx, block_x, block_y, block_x, block_y, block_w, block_h);
 
-    best_mse = MSE(frames, current_frame_idx, reference_frame_idx, block_x, block_y, block_x, block_y, block_w, block_h);
-
-    constexpr int LDSP[5][2] = {
+    constexpr int LDSP[9][2] = {
         { 0,  0},
         { 0, -2},
         { 2,  0},
         { 0,  2},
-        {-2,  0}
+        {-2,  0},
+        { 1, -1},
+        { 1,  1},
+        {-1,  1},
+        {-1, -1}
     };
 
-    bool improved = true;
-    while (improved) {
-        improved = false;
+    bool center_is_best;
+    do {
+        center_is_best = true;
         float min_mse = best_mse;
         int best_dx = 0;
         int best_dy = 0;
 
-        for (int i = 1; i < 5; ++i) {
+        for (int i = 0; i < 9; ++i) {
             int cand_x = best_x + LDSP[i][0];
             int cand_y = best_y + LDSP[i][1];
 
@@ -518,72 +635,49 @@ MotionVector getMotionVector(const std::vector<FrameData>& frames, uint32_t refe
                 min_mse  = cost;
                 best_dx  = LDSP[i][0];
                 best_dy  = LDSP[i][1];
-                improved = true;
+                center_is_best = (i == 0);
             }
         }
 
-        if (improved) {
-            best_x += best_dx;
-            best_y += best_dy;
-            best_mse = min_mse;
+        best_x += best_dx;
+        best_y += best_dy;
+        best_mse = min_mse;
+
+    } while (!center_is_best);
+
+    constexpr int SDSP[5][2] = {
+        { 0,  0},
+        { 0, -1},
+        { 1,  0},
+        { 0,  1},
+        {-1,  0}
+    };
+
+    float min_mse = best_mse;
+    int best_dx = 0;
+    int best_dy = 0;
+
+    for (int i = 1; i < 5; ++i) {
+        int cand_x = best_x + SDSP[i][0];
+        int cand_y = best_y + SDSP[i][1];
+
+        if (cand_x < 0 || cand_x + block_w > ref_frame.cols() ||
+            cand_y < 0 || cand_y + block_h > ref_frame.rows()) {
+            continue;
+        }
+
+        float cost = MSE(frames, current_frame_idx, reference_frame_idx, block_x, block_y, cand_x, cand_y, block_w, block_h);
+
+        if (cost < min_mse) {
+            min_mse  = cost;
+            best_dx  = SDSP[i][0];
+            best_dy  = SDSP[i][1];
         }
     }
 
-    int step = search_range;
-    while (step >= 1) {
-        bool improved = false;
-        float best_cost = best_mse;
-        int best_dx = 0, best_dy = 0;
-
-        for (int dy = -step; dy <= step; dy += step) {
-            for (int dx = -step; dx <= step; dx += step) {
-                if (dx == 0 && dy == 0) continue;
-                int cand_x = best_x + dx;
-                int cand_y = best_y + dy;
-                if (cand_x < 0 || cand_x + block_w > ref_frame.cols() ||
-                    cand_y < 0 || cand_y + block_h > ref_frame.rows()) continue;
-
-                float cost = MSE(frames, current_frame_idx, reference_frame_idx, block_x, block_y, cand_x, cand_y, block_w, block_h);
-
-                if (cost < best_cost) {
-                    best_cost = cost;
-                    best_dx = dx;
-                    best_dy = dy;
-                    improved = true;
-                }
-            }
-        }
-
-        if (improved) {
-            best_x += best_dx;
-            best_y += best_dy;
-            best_mse = best_cost;
-        }
-
-        step /= 2;
-    }
-
-    for (int dy = -1; dy <= 1; ++dy) {
-        for (int dx = -1; dx <= 1; ++dx) {
-            if (dx == 0 && dy == 0) continue;
-
-            int cand_x = best_x + dx;
-            int cand_y = best_y + dy;
-
-            if (cand_x < 0 || cand_x + block_w > ref_frame.cols() ||
-                cand_y < 0 || cand_y + block_h > ref_frame.rows()) {
-                continue;
-            }
-
-            float cost = MSE(frames, current_frame_idx, reference_frame_idx, block_x, block_y, cand_x, cand_y, block_w, block_h);
-
-            if (cost < best_mse) {
-                best_mse = cost;
-                best_x = cand_x;
-                best_y = cand_y;
-            }
-        }
-    }
+    best_x += best_dx;
+    best_y += best_dy;
+    best_mse = min_mse;
 
     int motion_dx = best_x - block_x;
     int motion_dy = best_y - block_y;
@@ -611,7 +705,7 @@ std::vector<MotionVector> getMotionVectors(const std::vector<FrameData>& frames,
             int actual_block_x = block_x * block_size;
 
             int idx = block_y * blocks_x + block_x;
-            motionVectors[idx] = getMotionVector(frames, reference_frame_idx, current_frame_idx, actual_block_x, actual_block_y, 16);
+            motionVectors[idx] = getMotionVector(frames, reference_frame_idx, current_frame_idx, actual_block_x, actual_block_y);
         }
     }
 
@@ -625,8 +719,7 @@ void markFrameTypes(std::vector<FrameData>& frames, uint8_t N) {
             frames[i].type = I_FRAME;
         } else if(i > 0) {
             double mse = MSE(frames, i, i - 1, 0, 0, 0, 0, frames[0].frame.cols(), frames[0].frame.rows())/255.f;
-            if(mse > 0.75) {
-                std::cout << "NEW I FRAME";
+            if(mse >= 0.75) {
                 frames[i].type = I_FRAME;
             }
         }
@@ -635,7 +728,7 @@ void markFrameTypes(std::vector<FrameData>& frames, uint8_t N) {
     for(int i = 0; i < frames.size(); i++) {
         if(frames[i].type == I_FRAME) {
             for(int j = N/3; j < N; j += N/3) {
-                if (frames[i+j].type != I_FRAME) {
+                if (i + j < frames.size() && frames[i+j].type != I_FRAME) {
                     frames[i+j].type = P_FRAME;
                 }
             }
@@ -755,9 +848,6 @@ std::vector<uint8_t> compressAsBlocks(Eigen::MatrixXf& input_matrix, uint8_t M, 
     std::vector<int16_t> flattened_DC(size_DC, 0);
     std::vector<int16_t> flattened_AC(size_AC, 0);
     
-    //std::cout << "Blocks: " << blocks_x << "x" << blocks_y << " = " << total_blocks << std::endl;
-    //std::cout << "DC size: " << flattened_DC.size() << ", AC size: " << flattened_AC.size() << std::endl;
-    
     int zigzag[8][8] = {
         {0, 1, 5, 6,14,15,27,28},
         {2, 4, 7,13,16,26,29,42},
@@ -814,10 +904,6 @@ std::vector<uint8_t> compressAsBlocks(Eigen::MatrixXf& input_matrix, uint8_t M, 
         }
     }
     
-    if(block_index != total_blocks) {
-        std::cerr << "ERROR: Processed " << block_index << " blocks, expected " << total_blocks << "\n";
-    }
-    
     std::vector<int16_t> DC_pred(size_DC, 0);
     DC_pred[0] = flattened_DC[0];
     
@@ -830,21 +916,11 @@ std::vector<uint8_t> compressAsBlocks(Eigen::MatrixXf& input_matrix, uint8_t M, 
 }
 
 Eigen::MatrixXf decompressToBMP(const std::vector<int16_t>& flattened_DC, const std::vector<int16_t>& flattened_AC, const std::vector<std::vector<int>>& q_table, uint32_t w, uint32_t h) {
-    
     Eigen::MatrixXf H = hMat();
     
     uint32_t blocks_x = (w + 7) / 8;
     uint32_t blocks_y = (h + 7) / 8;
     uint32_t total_blocks = blocks_x * blocks_y;
-    
-    if(flattened_DC.size() != total_blocks) {
-        throw std::runtime_error("ERROR: DC size mismatch!");
-    }
-    
-    if(flattened_AC.size() != total_blocks * 63) {
-        std::cout << "AC: " << flattened_AC.size() << "\n";
-        throw std::runtime_error("ERROR: AC size mismatch!");
-    }
     
     Eigen::MatrixXf bmp(h, w);
     bmp.setZero();
@@ -888,7 +964,7 @@ Eigen::MatrixXf decompressToBMP(const std::vector<int16_t>& flattened_DC, const 
                             coeff_matrix(x, y) = ac_value;
                         }
                     } else {
-                        std::cerr << "ERROR: AC index out of bounds!" << std::endl;
+                        std::cerr << "ERROR: AC index out of bounds!\n";
                     }
                 }
             }
@@ -930,7 +1006,6 @@ std::vector<FrameData> reorderFramesForCompression(const std::vector<FrameData>&
     std::vector<FrameData> reordered;
     std::vector<size_t> anchors;
 
-    // Collect indices of all I and P frames (anchors/references)
     for (size_t i = 0; i < frames.size(); ++i) {
         if (frames[i].type == I_FRAME || frames[i].type == P_FRAME) {
             anchors.push_back(i);
@@ -938,21 +1013,17 @@ std::vector<FrameData> reorderFramesForCompression(const std::vector<FrameData>&
     }
 
     if (anchors.empty()) {
-        return frames;  // All B-frames → rare case
+        return frames;
     }
 
-    // 1. Push the very first anchor (usually the opening I-frame)
     reordered.push_back(frames[anchors[0]]);
 
-    // 2. For every subsequent anchor: push the anchor + all B-frames that depend on (prev_anchor, this_anchor)
     for (size_t k = 1; k < anchors.size(); ++k) {
         size_t curr_anchor = anchors[k];
         size_t prev_anchor = anchors[k - 1];
 
-        // Push current I/P anchor first → decoder can use it as reference
         reordered.push_back(frames[curr_anchor]);
 
-        // Then push the B-frames that were originally between prev and curr anchor
         for (size_t j = prev_anchor + 1; j < curr_anchor; ++j) {
             if (frames[j].type == B_FRAME) {
                 reordered.push_back(frames[j]);
@@ -960,7 +1031,6 @@ std::vector<FrameData> reorderFramesForCompression(const std::vector<FrameData>&
         }
     }
 
-    // 3. Handle any trailing B-frames after the last anchor (rare, but safe)
     size_t last_anchor = anchors.back();
     for (size_t j = last_anchor + 1; j < frames.size(); ++j) {
         if (frames[j].type == B_FRAME) {
@@ -968,109 +1038,12 @@ std::vector<FrameData> reorderFramesForCompression(const std::vector<FrameData>&
         }
     }
 
-    // Optional: validation
-    if (reordered.size() != frames.size()) {
-        std::cerr << "WARNING: Reordering lost/gained frames! Original: " 
-                  << frames.size() << ", Reordered: " << reordered.size() << "\n";
-    }
-
     return reordered;
 }
 
-#pragma pack(push, 1)
-struct BMPHeader {
-    uint16_t file_type{0x4D42};
-    uint32_t file_size{0};
-    uint16_t reserved1{0};
-    uint16_t reserved2{0};
-    uint32_t offset_data{0};
-    
-    uint32_t dib_header_size{40};
-    int32_t width{0};
-    int32_t height{0};
-    uint16_t planes{1};
-    uint16_t bits_per_pixel{24};
-    uint32_t compression{0};
-    uint32_t image_size{0};
-    int32_t x_pixels_per_meter{0};
-    int32_t y_pixels_per_meter{0};
-    uint32_t colors_used{0}; 
-    uint32_t important_colors{0};
-};
-#pragma pack(pop)
-
-bool saveMatrixAsBMP(const Eigen::MatrixXf& matrix, const std::string& filename, bool normalize = true, float min_val = 0.0f, float max_val = 255.0f) {
-    
-    if (matrix.rows() == 0 || matrix.cols() == 0) {
-        std::cerr << "ERROR: Empty matrix!" << std::endl;
-        return false;
-    }
-    
-    std::ofstream file(filename, std::ios::binary);
-    if (!file.is_open()) {
-        std::cerr << "ERROR: Cannot open file: " << filename << std::endl;
-        return false;
-    }
-    
-    int width = matrix.cols();
-    int height = matrix.rows();
-    
-    float actual_min = min_val;
-    float actual_max = max_val;
-    
-    if (normalize) {
-        actual_min = matrix.minCoeff();
-        actual_max = matrix.maxCoeff();
-        
-        if (actual_max - actual_min < 1e-6f) {
-            actual_max = actual_min + 1.0f;
-        }
-    }
-    
-    int row_padding = (4 - (width * 3) % 4) % 4;
-    
-    BMPHeader header;
-    header.width = width;
-    header.height = height;
-    header.image_size = (width * 3 + row_padding) * height;
-    header.file_size = sizeof(BMPHeader) + header.image_size;
-    header.offset_data = sizeof(BMPHeader);
-    
-    file.write(reinterpret_cast<char*>(&header), sizeof(header));
-    
-    for (int i = height - 1; i >= 0; --i) {
-        for (int j = 0; j < width; ++j) {
-            float value = matrix(i, j);
-            
-            if (normalize) {
-                value = 255.0f * (value - actual_min) / (actual_max - actual_min);
-            } else {
-                if (value < 0.0f) value = 0.0f;
-                if (value > 255.0f) value = 255.0f;
-            }
-            
-            uint8_t pixel = static_cast<uint8_t>(value);
-            
-            file.put(pixel);
-            file.put(pixel);
-            file.put(pixel);
-        }
-        
-        for (int p = 0; p < row_padding; ++p) {
-            file.put(0);
-        }
-    }
-    
-    file.close();
-    std::cout << "Saved BMP image: " << filename << " (" << width << "x" << height << ")" << std::endl;
-    return true;
-}
-
-std::vector<std::vector<MotionVector>> compressVideo(std::vector<FrameData>& frames, uint8_t N, uint8_t M, VideoInfo& videoInfo) {
+void compressVideo(std::vector<FrameData>& frames, uint8_t N, uint8_t M, VideoInfo& videoInfo) {
     uint8_t PInterval = N/3;
-
     markFrameTypes(frames, N);
-
     size_t prev_i = 0;
     for(size_t i = 0; i < frames.size(); i++) {
         if(frames[i].type == P_FRAME) {
@@ -1080,50 +1053,40 @@ std::vector<std::vector<MotionVector>> compressVideo(std::vector<FrameData>& fra
             prev_i = i;
         }
     }
-
     size_t prev = 0, next = 0;
-
     for(size_t i = 0; i < frames.size(); i++) {
         if(frames[i].type == B_FRAME) {
             for(size_t j = i + 1; j < N && j + i < frames.size(); j++) {
-                if(frames[i+j].type == I_FRAME || frames[i+j].type == P_FRAME) {
-                    next = j + i;
+                if(frames[j].type == I_FRAME || frames[j].type == P_FRAME) {
+                    next = j;
                     break;
                 }
             }
-
             frames[i].motionVectorsPrev = getMotionVectors(frames, prev, i);
             frames[i].prev = prev;
             frames[i].motionVectorsNext = getMotionVectors(frames, next, i);
             frames[i].next = next;
-
         } else if(frames[i].type == I_FRAME || frames[i].type == P_FRAME) {
             prev = i;
         }
     }
-
-    std::cout << "Before: " << frames.size() << "\n";
     frames = reorderFramesForCompression(frames);
-    std::cout << "After: " << frames.size() << "\n";
-
     BitWriter writer;
-
     writer.writeUint32(videoInfo.w);
     writer.writeUint32(videoInfo.h);
     writer.writeUint32((uint32_t)videoInfo.fps);
     writer.writeByte(N);
     writer.writeByte(M);
-
+    const float FORWARD_BIAS = 12.0f;
+    const float NEXT_THRESHOLD = 0.88f;
     for(auto& fr : frames) {
         if(fr.type == I_FRAME) {
-            //std::cout << "I\n";
             writer.writeBit(0);
             std::vector<uint8_t> comp = compressAsBlocks(fr.frame, M, 0);
             for(auto& val : comp) {
                 writer.writeByte(val);
             }
         } else if(fr.type == P_FRAME) {
-            //std::cout << "P\n";
             writer.writeBit(1);
             writer.writeBit(0);
             for(auto& mv : fr.motionVectorsPrev) {
@@ -1131,23 +1094,20 @@ std::vector<std::vector<MotionVector>> compressVideo(std::vector<FrameData>& fra
                     writer.writeBit(0);
                     writer.writeInt32(mv.dx);
                     writer.writeInt32(mv.dy);
-                    //std::cout << "MSE: " << mv.mse << "\n";
                 } else {
                     writer.writeBit(1);
                     Eigen::MatrixXf temp = fr.frame.block(mv.y, mv.x, 16, 16);
                     std::vector<uint8_t> comp = compressAsBlocks(temp, M, 0);
-                    //std::cout << "MSE: " << mv.mse << "\n";
                     for(auto& it : comp) {
                         writer.writeByte(it);
                     }
                 }
             }
         } else if(fr.type == B_FRAME) {
-            //std::cout << "B\n";
             writer.writeBit(1);
             writer.writeBit(1);
             for(size_t i = 0; i < fr.motionVectorsNext.size(); i++) {
-                if(fr.motionVectorsNext[i].mse < fr.motionVectorsPrev[i].mse) {
+                if(fr.motionVectorsNext[i].mse < fr.motionVectorsPrev[i].mse * NEXT_THRESHOLD - FORWARD_BIAS) {
                     writer.writeBit(0);
                     writer.writeInt32(fr.motionVectorsNext[i].dx);
                     writer.writeInt32(fr.motionVectorsNext[i].dy);
@@ -1159,19 +1119,14 @@ std::vector<std::vector<MotionVector>> compressVideo(std::vector<FrameData>& fra
             }
         }
     }
-
     std::vector<uint8_t> fin = writer.getBuffer();
     writer = encode(fin);
-
     //std::cout << "FinalSize: " << (double)writer.getBuffer().size()/(double)1048576 << "\n";
     writer.flush();
     writer.writeBufferToFile("test.bin");
-
-    return std::vector<std::vector<MotionVector>>();
 }
 
 Eigen::MatrixXf regenPFrame(BitReader& reader, uint32_t blocks_x, uint32_t blocks_y, Eigen::MatrixXf& prevI) {
-    //std::cout << "P\n";
     uint32_t mb_x = blocks_x / 2;
     uint32_t mb_y = blocks_y / 2;
 
@@ -1201,7 +1156,6 @@ Eigen::MatrixXf regenPFrame(BitReader& reader, uint32_t blocks_x, uint32_t block
 }
 
 Eigen::MatrixXf regenBFrame(BitReader& reader, uint32_t blocks_x, uint32_t blocks_y, Eigen::MatrixXf& prev, Eigen::MatrixXf& next) {
-    //std::cout << "B\n";
     uint32_t mb_x = blocks_x / 2;
     uint32_t mb_y = blocks_y / 2;
 
@@ -1225,6 +1179,65 @@ Eigen::MatrixXf regenBFrame(BitReader& reader, uint32_t blocks_x, uint32_t block
     }
 
     return mat;
+}
+
+struct ReorderedVideo {
+    std::vector<Eigen::MatrixXf> displayFrames;
+    std::vector<FrameType> displayTypes;
+};
+
+std::vector<Eigen::MatrixXf> restoreDisplayOrder(const std::vector<Eigen::MatrixXf>& codedFrames, const std::vector<FrameType>& codedTypes) {
+    uint32_t prev = 0;
+    uint32_t next = 1;
+
+    std::vector<uint32_t> ordered;
+    ordered.push_back(0);
+    for(uint32_t i = 2; i < codedTypes.size(); i++) {
+        std::vector<uint32_t> temp;
+        while(true) {
+            if(codedTypes[i] == B_FRAME) {
+                temp.push_back(i);
+            } else {
+                for(auto& it : temp) {
+                    ordered.push_back(it);
+                }
+                ordered.push_back(next);
+                prev = next;
+                next = i;
+                break;
+            }
+            i++;
+        }
+    }
+
+    std::vector<Eigen::MatrixXf> taps;
+    for(auto& it : ordered) {
+        taps.push_back(codedFrames[it]);
+    }
+
+    return taps;
+}
+
+std::vector<Eigen::MatrixXf> removePadding(const std::vector<Eigen::MatrixXf>& frames, uint32_t target_width, uint32_t target_height) {
+    if (frames.empty()) {
+        std::cerr << "removePadding: no frames provided\n";
+        return {};
+    }
+
+    const Eigen::MatrixXf& first = frames[0];
+    const int orig_rows   = first.rows();
+    const int orig_cols   = first.cols();
+
+    std::vector<Eigen::MatrixXf> cropped;
+    cropped.reserve(frames.size());
+
+    for (const auto& frame : frames) {
+        cropped.push_back(
+            frame.block(0, 0, target_height, target_width)
+        );
+    }
+
+    return cropped;
 }
 
 void decompressVideo() {
@@ -1262,6 +1275,7 @@ void decompressVideo() {
     std::vector<Eigen::MatrixXf> frames;
 
     frames.push_back(prev);
+    frameTypes.push_back(I_FRAME);
 
     uint32_t s = 0;
 
@@ -1274,21 +1288,15 @@ void decompressVideo() {
                 //B_FRAME
                 frames.push_back(regenBFrame(reader, blocks_x, blocks_y, prev, next));
                 frameTypes.push_back(B_FRAME);
-                std::string fr = "frame" + std::to_string(s) + "B" + ".bmp";
-                saveMatrixAsBMP(frames.back(), fr);
             } else {
                 //P_FRAME
                 prev = next;
                 next = regenPFrame(reader, blocks_x, blocks_y, prev);
                 frames.push_back(next);
                 frameTypes.push_back(P_FRAME);
-                std::string fr = "frame" + std::to_string(s) + "P" + ".bmp";
-                saveMatrixAsBMP(frames.back(), fr);
-                //break;
             }
         } else {
             //First I_FRAME
-            //std::cout << "I\n";
             std::vector<uint8_t> temp1(full_frame_size_bytes);
             for(size_t i = 0; i < full_frame_size_bytes; i++) {
                 temp1[i] = reader.readNextByte();
@@ -1297,22 +1305,23 @@ void decompressVideo() {
             next = decompress(temp1, dims.first, dims.second);
             frames.push_back(next);
             frameTypes.push_back(I_FRAME);
-            std::string fr = "frame" + std::to_string(s) + "I" + ".bmp";
-            saveMatrixAsBMP(frames.back(), fr);
-            //break;
         }
     }
+
+    uint32_t j = 0;
+    std::vector<Eigen::MatrixXf> tpst = restoreDisplayOrder(frames, frameTypes);
+    tpst = removePadding(tpst, videoInfo.w, videoInfo.h);
+    saveFramesToRawMKV(tpst, videoInfo.fps, "all.mkv");
 }
 
 int main(int argc, char* argv[]) {
 
-    //return 0;
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <input.mkv>" << std::endl;
         return 1;
     }
 
-    uint8_t M = 254, N = 50;
+    uint8_t M = 50, N = 10;
     
     VideoInfo videoInfo;
     std::vector<FrameData> frames = extractVideoFrames(argv[1], videoInfo.fps);
@@ -1324,7 +1333,7 @@ int main(int argc, char* argv[]) {
     }
     
     compressVideo(frames, N, M, videoInfo);
-    decompressVideo();
+    //decompressVideo();
     
     return 0;
 }
